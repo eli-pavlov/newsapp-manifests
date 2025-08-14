@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: development
   sources:
-    # 1) MySQL (stateful)
+    # 1) DB (includes PV/PVC + prepare-storage + StatefulSet + Service)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/mysql

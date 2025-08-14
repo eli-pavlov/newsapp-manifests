@@ -1,0 +1,124 @@
+# .flatten_ignore
+# This file controls which files and directories are ignored or explicitly included during flattening.
+# Use glob patterns here. When a directory is specified without wildcards, it is automatically treated as "directory/**".
+#
+# --------------------------
+# Global Ignore Patterns:
+# These patterns are always ignored, regardless of other settings
+global:
+# Build and dependency directories
+node_modules
+bower_components
+vendor
+dist
+build
+out
+target
+tmp
+temp
+.cache
+__pycache__
+.git
+.vscode
+.idea
+.pnp
+.jest
+.mocha
+.nyc_output
+test-results
+reports
+.gradle
+android
+ios
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+composer.lock
+Gemfile.lock
+poetry.lock
+requirements.txt
+go.sum
+Cargo.lock
+# Generated files
+*.min.js
+*.min.css
+*.map
+*.bundle.*
+*.chunk.*
+# Documentation
+docs/api
+docs/generated
+api-docs
+jsdoc
+javadoc
+swagger
+# Test and example files
+test
+tests
+spec
+__tests__
+__mocks__
+fixtures
+mocks
+stubs
+test-data
+test-utils
+testing-utils
+examples
+demo
+samples
+# Environment and configuration
+.env
+.env.*
+config
+configs
+settings
+# IDE and editor files
+.vscode
+.idea
+.vs
+.project
+.settings
+.classpath
+.factorypath
+# Version control
+.git
+.svn
+.hg
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.log
+logs
+# --------------------------
+# Local Whitelist Patterns:
+# These patterns are always included, even if they match global ignore patterns
+whitelist:
+# Example:
+# src/**
+# lib/**/*.js
+# --------------------------
+# Local Blacklist Patterns:
+# These patterns are ignored in addition to global patterns
+blacklist:
+# Example:
+# test/**
+# *.spec.js
+# --------------------------
+# Settings:
+# Configure token limits and other processing options
+settings:
+# Token limits for different LLMs (characters, ~4 chars per token):
+# - Claude 3 Opus: ~800K chars (200K tokens)
+# - Claude 3 Sonnet: ~512K chars (128K tokens) [DEFAULT]
+# - GPT-4 Turbo: ~512K chars (128K tokens)
+# - Claude 2: ~400K chars (100K tokens)
+# - GPT-4: ~128K chars (32K tokens)
+# - GPT-3.5 Turbo: ~64K chars (16K tokens)
+maxTokenLimit: 128000
+maxTokensPerFile: 25000
+# Processing options
+useGitIgnore: true
+maxConcurrentFiles: 4

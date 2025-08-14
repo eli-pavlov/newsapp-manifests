@@ -1,28 +1,32 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: prepare-mysql-storage-{{ .Release.Name }}
-  namespace: {{ .Release.Namespace }}
+  name: mysql-prepare-storage
+  labels:
+    app.kubernetes.io/name: mysql
 spec:
+  backoffLimit: 2
   template:
     spec:
       restartPolicy: OnFailure
       nodeSelector:
-        kubernetes.io/hostname: node-3
+{{- if .Values.nodeSelector }}
+{{ toYaml .Values.nodeSelector | indent 8 }}
+{{- end }}
       containers:
-        - name: prepare-storage
-          image: busybox
-          command:
-            - sh
-            - -c
-            - >
-              mkdir -p /mnt/{{ .Release.Name }} &&
-              chown -R 1000:1000 /mnt/{{ .Release.Name }}
+        - name: mkdir
+          image: alpine:3.20
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              set -e
+              mkdir -p /mnt/data/mysql-{{ .Release.Namespace }}
+              echo "Ensured /mnt/data/mysql-{{ .Release.Namespace }}"
           volumeMounts:
-            - name: mnt
-              mountPath: /mnt
+            - name: host-mnt
+              mountPath: /mnt/data
       volumes:
-        - name: mnt
+        - name: host-mnt
           hostPath:
-            path: /mnt
-            type: Directory
+            path: /mnt/data
+            type: DirectoryOrCreate

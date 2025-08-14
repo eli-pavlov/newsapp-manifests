@@ -4,12 +4,12 @@ metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
-  description: Prod project for newsapp
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
   destinations:
     - namespace: default
       server: https://kubernetes.default.svc
-  sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
