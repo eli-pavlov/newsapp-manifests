@@ -41,3 +41,11 @@ ingress:
   #     - path: /
   #       pathType: Prefix
   tls: []
+
+# --- NEW: provide defaults so .Values.hpa.* always exists ---
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
