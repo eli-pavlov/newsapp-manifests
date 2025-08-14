@@ -6,9 +6,7 @@ metadata:
 spec:
   description: Dev project for newsapp
   destinations:
-    - namespace: backend
-      server: https://kubernetes.default.svc
-    - namespace: frontend
+    - namespace: development
       server: https://kubernetes.default.svc
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git

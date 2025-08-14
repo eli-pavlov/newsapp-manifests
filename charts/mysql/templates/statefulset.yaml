@@ -1,42 +1,34 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: mysql
+  name: {{ .Values.fullnameOverride | default (include "mysql.fullname" .) }}
   labels:
-    app.kubernetes.io/name: mysql
+    app.kubernetes.io/name: {{ .Chart.Name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  serviceName: mysql
+  serviceName: {{ .Values.fullnameOverride | default (include "mysql.fullname" .) }}
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: mysql
+      app.kubernetes.io/name: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: mysql
+        app.kubernetes.io/name: {{ .Chart.Name }}
     spec:
       {{- if .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
       {{- end }}
-      {{- if .Values.tolerations }}
-      tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
-      {{- end }}
-      {{- if .Values.affinity }}
-      affinity:
-{{ toYaml .Values.affinity | indent 8 }}
-      {{- end }}
       containers:
         - name: mysql
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - containerPort: 3306
-              name: mysql
+          image: mysql:8.3
           envFrom:
             - secretRef:
                 name: {{ .Values.mysql.secretName }}
+          ports:
+            - containerPort: 3306
           volumeMounts:
             - name: data
               mountPath: /var/lib/mysql
@@ -47,7 +39,4 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.persistence.size }}
-        {{- if .Values.persistence.storageClass }}
-        storageClassName: {{ .Values.persistence.storageClass }}
-        {{- end }}
+            storage: {{ .Values.persistence.size | default "10Gi" }}

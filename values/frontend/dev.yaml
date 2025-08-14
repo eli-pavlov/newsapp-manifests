@@ -1,12 +1,20 @@
 app: { name: frontend, type: frontend }
+fullnameOverride: frontend
+
 image:
   repository: ghcr.io/eli-pavlov/newsapp/frontend
   tag: latest
+
 service:
   type: ClusterIP
   port: 80
   hostPort: 3080
-nodeSelector: { kubernetes.io/hostname: node-1 }
+
+# nodeSelector: { kubernetes.io/hostname: node-1 }
+
+securityContext:
+  addNetBindService: false
+
 env:
   plain:
     VITE_SERVER_URL: "/api"

@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-development
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    # 1) DB first
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/mysql
+      helm:
+        releaseName: mysql
+        valueFiles: ["values/mysql/dev.yaml"]
+    # 2) Backend second
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        releaseName: backend
+        valueFiles: ["values/backend/dev.yaml"]
+    # 3) Frontend last
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        releaseName: frontend
+        valueFiles: ["values/frontend/dev.yaml"]
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true"]

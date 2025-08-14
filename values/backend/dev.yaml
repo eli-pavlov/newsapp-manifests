@@ -1,13 +1,18 @@
-app: {name: backend, type: backend}
+app: { name: backend, type: backend }
+fullnameOverride: backend
+
 image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
+  repository: ghcr.io/eli-pavlov/newsapp/backend
+  tag: latest
+
 service:
   type: ClusterIP
   port: 8080
-  nodePort: 30001 # valid NodePort range
-nodeSelector: {kubernetes.io/hostname: node-2}
+
+# keep if you want to pin nodes; otherwise remove this block
+# nodeSelector: { kubernetes.io/hostname: node-2 }
+
 env:
   plain:
     DB_ENGINE_TYPE: "MYSQL"
-  secretRef: backend-secrets # CI creates this with DB_URI
+  secretRef: backend-secrets

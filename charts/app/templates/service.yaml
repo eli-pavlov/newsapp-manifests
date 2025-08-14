@@ -4,6 +4,11 @@ metadata:
   name: {{ include "app.fullname" . }}
   labels:
     app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
 spec:
   type: {{ .Values.service.type }}
   selector:
