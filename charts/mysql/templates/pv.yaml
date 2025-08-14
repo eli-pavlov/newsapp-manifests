@@ -7,7 +7,8 @@ metadata:
 spec:
   capacity:
     storage: {{ .Values.persistence.size | default "10Gi" }}
-  accessModes: ["ReadWriteOnce"]
+  accessModes:
+    - ReadWriteOnce
   storageClassName: local-path
   local:
     path: /mnt/data/mysql-{{ .Release.Namespace }}
@@ -18,10 +19,8 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-{{- if .Values.nodeSelector }}
-{{- if hasKey .Values.nodeSelector kubernetes.io/hostname }}
-                - {{ .Values.nodeSelector.kubernetes.io/hostname | quote }}
-{{- end }}
-{{- else }}
+                {{- if and .Values.nodeSelector (hasKey .Values.nodeSelector "kubernetes.io/hostname") }}
+                - {{ index .Values.nodeSelector "kubernetes.io/hostname" | quote }}
+                {{- else }}
                 - "node-3"
-{{- end }}
+                {{- end }}
