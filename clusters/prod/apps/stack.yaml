@@ -9,7 +9,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
   sources:
-    # 1) DB (includes PV/PVC + prepare-storage + StatefulSet + Service)
+    # 0) SealedSecrets (namespace-scoped to "default")
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: sealed/backend/prod
+      directory:
+        recurse: true
+
+    # 1) DB (PV/PVC + StatefulSet + Service) on node-3
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/mysql
@@ -18,7 +25,7 @@ spec:
         valueFiles:
           - values/mysql/prod.yaml
 
-    # 2) Backend
+    # 2) Backend (uses backend-secrets.DB_URI)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/app
@@ -27,7 +34,7 @@ spec:
         valueFiles:
           - values/backend/prod.yaml
 
-    # 3) Frontend
+    # 3) Frontend (Nginx proxies to backend-app.default.svc.cluster.local:8080)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/app
