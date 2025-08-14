@@ -1,0 +1,11 @@
+﻿{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "helm lint backend", "type": "shell", "command": "helm lint charts/backend" },
+    { "label": "helm lint frontend", "type": "shell", "command": "helm lint charts/frontend" },
+    { "label": "helm template backend:dev", "type": "shell", "command": "helm template charts/backend -f values/backend/dev.yaml" },
+    { "label": "helm template frontend:dev", "type": "shell", "command": "helm template charts/frontend -f values/frontend/dev.yaml" },
+    { "label": "helm template backend:prod", "type": "shell", "command": "helm template charts/backend -f values/backend/prod.yaml" },
+    { "label": "helm template frontend:prod", "type": "shell", "command": "helm template charts/frontend -f values/frontend/prod.yaml" }
+  ]
+}

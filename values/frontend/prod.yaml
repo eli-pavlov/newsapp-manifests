@@ -1,0 +1,14 @@
+﻿image:
+  repository: ghcr.io/eli-pavlov/newsapp-frontend
+  tag: latest
+service:
+  type: ClusterIP
+  port: 80
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix

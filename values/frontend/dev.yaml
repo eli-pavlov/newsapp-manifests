@@ -1,0 +1,8 @@
+﻿image:
+  repository: ghcr.io/eli-pavlov/newsapp-frontend
+  tag: dev
+service:
+  type: ClusterIP
+  port: 80
+ingress:
+  enabled: false

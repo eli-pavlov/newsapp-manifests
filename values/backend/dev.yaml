@@ -1,0 +1,12 @@
+﻿image:
+  repository: ghcr.io/eli-pavlov/newsapp-backend
+  tag: dev
+service:
+  type: ClusterIP
+  port: 8080
+env:
+  - name: NODE_ENV
+    value: development
+ingress:
+  enabled: false
+resources: {}

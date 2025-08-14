@@ -1,0 +1,21 @@
+﻿image:
+  repository: ghcr.io/eli-pavlov/newsapp-backend
+  tag: latest
+service:
+  type: ClusterIP
+  port: 8080
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: backend.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+resources:
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
