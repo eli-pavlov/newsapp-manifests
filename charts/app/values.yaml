@@ -33,7 +33,11 @@ securityContext:
 
 ingress:
   enabled: false
-  className: ""     # e.g. "nginx"
-  annotations: {}   # e.g. { cert-manager.io/cluster-issuer: "letsencrypt-prod" }
-  hosts: []         # see example below when you enable it
-  tls: []           # e.g. [{ hosts: ["example.com"], secretName: "example-tls" }]
+  className: ""
+  annotations: {}
+  hosts: []   # example when enabled:
+  # - host: example.com
+  #   paths:
+  #     - path: /
+  #       pathType: Prefix
+  tls: []
