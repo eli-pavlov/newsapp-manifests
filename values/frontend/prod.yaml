@@ -1,22 +1,18 @@
-﻿app: { name: frontend, type: frontend }
-
+app: {name: frontend, type: frontend}
 image:
   repository: elipavlov/newsapp-frontend
-  tag: latest
-
+  tag: latest-ee2e95e
 service:
   type: ClusterIP
   port: 80
   hostPort: 80
-nodeSelector: { kubernetes.io/hostname: node-1 }
-
+nodeSelector: {kubernetes.io/hostname: node-1}
 securityContext:
   addNetBindService: true
-
 env:
   plain:
     # FE talks to its own Nginx at /api; actions set the proxy target each deploy.
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
-    BACKEND_SERVICE_PORT: "8080"
+    BACKEND_SERVICE_HOST: ""
+    BACKEND_SERVICE_PORT: ""
