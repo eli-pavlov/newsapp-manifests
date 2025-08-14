@@ -1,0 +1,2 @@
+# Placeholder so the prod sealed-secrets dir exists.
+# CI writes sealed files here: backend-secrets.sealed.yaml, mysql-credentials.sealed.yaml

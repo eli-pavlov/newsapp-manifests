@@ -2,14 +2,12 @@
 fullnameOverride: backend
 
 image:
-  repository: ghcr.io/eli-pavlov/newsapp/backend
+  repository: elipavlov/newsapp-backend
   tag: latest
 
 service:
   type: ClusterIP
   port: 8080
-
-# nodeSelector: { kubernetes.io/hostname: node-2 }
 
 env:
   plain:

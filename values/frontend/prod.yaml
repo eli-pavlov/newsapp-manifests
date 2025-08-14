@@ -1,7 +1,7 @@
 ﻿app: { name: frontend, type: frontend }
 
 image:
-  repository: ghcr.io/eli-pavlov/newsapp/frontend
+  repository: elipavlov/newsapp-frontend
   tag: latest
 
 service:
@@ -15,8 +15,8 @@ securityContext:
 
 env:
   plain:
-    # FE talks to its own Nginx at /api; Nginx proxies to backend service in the same namespace.
+    # FE talks to its own Nginx at /api; actions set the proxy target each deploy.
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: "backend-app.default.svc.cluster.local"
+    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
     BACKEND_SERVICE_PORT: "8080"
