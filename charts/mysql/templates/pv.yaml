@@ -19,8 +19,8 @@ spec:
               operator: In
               values:
 {{- if .Values.nodeSelector }}
-{{- if hasKey .Values.nodeSelector "kubernetes.io/hostname" }}
-                - {{ .Values.nodeSelector."kubernetes.io/hostname" | quote }}
+{{- if hasKey .Values.nodeSelector kubernetes.io/hostname }}
+                - {{ .Values.nodeSelector.kubernetes.io/hostname | quote }}
 {{- end }}
 {{- else }}
                 - "node-3"

@@ -1,9 +1,9 @@
 Repository Summary:
-Files analyzed: 29
-Directories scanned: 219
-Total size: 30.13 KB (30853 bytes)
-Estimated tokens: 7713
-Processing time: 0.11 seconds
+Files analyzed: 28
+Directories scanned: 229
+Total size: 30.04 KB (30765 bytes)
+Estimated tokens: 7691
+Processing time: 0.14 seconds
 
 
 ## Table of Contents
@@ -13,8 +13,8 @@ Processing time: 0.11 seconds
 - [Files Content](#files-content)
   - Files By Category:
     - Configuration (23 files):
-      - [Chart.yaml](#Chart_yaml) - 123 bytes
       - [Chart.yaml](#Chart_yaml) - 161 bytes
+      - [Chart.yaml](#Chart_yaml) - 123 bytes
       - [deployment.yaml](#deployment_yaml) - 2.5 KB
       - [dev.yaml](#dev_yaml) - 368 bytes
       - [dev.yaml](#dev_yaml) - 405 bytes
@@ -22,14 +22,13 @@ Processing time: 0.11 seconds
       - [hpa.yaml](#hpa_yaml) - 823 bytes
       - [ingress.yaml](#ingress_yaml) - 885 bytes
       - [prepare-storage.yaml](#prepare-storage_yaml) - 835 bytes
-      - [prod.yaml](#prod_yaml) - 301 bytes
+      - [prod.yaml](#prod_yaml) - 240 bytes
       - [and 13 more Configuration files...]
     - Documentation (1 files):
       - [README.md](#README_md) - 472 bytes
-    - Other (5 files):
+    - Other (4 files):
       - [.flatten_ignore](#_flatten_ignore) - 2.1 KB
       - [.helmignore](#_helmignore) - 48 bytes
-      - [.project_structure_ignore](#_project_structure_ignore) - 0 bytes
       - [LICENSE](#LICENSE) - 11.3 KB
       - [needed_envs](#needed_envs) - 268 bytes
 - [Architecture and Relationships](#architecture-and-relationships)
@@ -40,7 +39,7 @@ Processing time: 0.11 seconds
 ## Project Summary <a id="project-summary"></a>
 
 # Project Digest: newsapp-manifests
-Generated on: Thu Aug 14 2025 22:53:57 GMT+0300 (Israel Daylight Time)
+Generated on: Thu Aug 14 2025 23:18:17 GMT+0300 (Israel Daylight Time)
 Source: c:\Users\Lenovo\newsapp-manifests
 Project Directory: c:\Users\Lenovo\newsapp-manifests
 
@@ -85,6 +84,7 @@ Project Directory: c:\Users\Lenovo\newsapp-manifests
   [DIR] sealed
     [DIR] backend
       [DIR] dev
+      [DIR] prod
   [DIR] values
     [DIR] backend
       [FILE] dev.yaml
@@ -95,8 +95,6 @@ Project Directory: c:\Users\Lenovo\newsapp-manifests
     [DIR] mysql
       [FILE] dev.yaml
       [FILE] prod.yaml
-  [DIR] _docs
-    [FILE] .project_structure_ignore
 
 # Files Content
 
@@ -115,85 +113,6 @@ helm template frontend-prod charts/app -f values/frontend/prod.yaml
 - Apply projects and apps from `clusters/dev` or `clusters/prod`.
 - Argo CD v2.9 supports `spec.sources` for multi-repo/values reference.
 
-## charts\app\templates\deployment.yaml <a id="deployment_yaml"></a>
-
-### Dependencies
-
-- `{{ .Values.image.repository }}:{{ .Values.image.tag }}`
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  annotations:
-    {{- /* Sync waves: backend=1, frontend=2 */ -}}
-    {{- $wave := "1" -}}
-    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
-    argocd.argoproj.io/sync-wave: "{{ $wave }}"
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: {{ include "app.name" . }}
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: {{ include "app.name" . }}
-    spec:
-      {{- if .Values.imagePullSecrets }}
-      imagePullSecrets:
-{{ toYaml .Values.imagePullSecrets | indent 8 }}
-      {{- end }}
-      {{- if .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-      {{- end }}
-      {{- if .Values.tolerations }}
-      tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
-      {{- end }}
-      {{- if .Values.affinity }}
-      affinity:
-{{ toYaml .Values.affinity | indent 8 }}
-      {{- end }}
-      containers:
-        - name: {{ include "app.name" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - containerPort: {{ .Values.service.port }}
-              name: http
-              {{- if .Values.service.hostPort }}
-              hostPort: {{ .Values.service.hostPort }}
-              {{- end }}
-          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            {{- range $k, $v := .Values.env.plain }}
-            - name: {{ $k }}
-              value: "{{ $v }}"
-            {{- end }}
-          {{- if or .Values.env.secretRef .Values.env.configRef }}
-          envFrom:
-            {{- if .Values.env.configRef }}
-            - configMapRef: { name: {{ .Values.env.configRef }} }
-            {{- end }}
-            {{- if .Values.env.secretRef }}
-            - secretRef: { name: {{ .Values.env.secretRef }} }
-            {{- end }}
-          {{- end }}
-          {{- if .Values.securityContext.addNetBindService }}
-          securityContext:
-            capabilities: { add: ["NET_BIND_SERVICE"] }
-          {{- end }}
-          resources:
-{{ toYaml .Values.resources | indent 12 }}
-
 ## charts\app\Chart.yaml <a id="Chart_yaml"></a>
 
 apiVersion: v2
@@ -202,44 +121,6 @@ description: Generic deployment chart for simple web apps (backend/frontend)
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
-
-## charts\mysql\Chart.yaml <a id="Chart_yaml"></a>
-
-apiVersion: v2
-name: mysql
-description: Minimal MySQL for newsapp
-type: application
-version: 0.1.0
-appVersion: "8.0"
-
-## _docs\.project_structure_ignore <a id="project_structure_ignore"></a>
-
-
-## values\backend\dev.yaml <a id="dev_yaml"></a>
-
-app: {name: backend, type: backend}
-fullnameOverride: backend
-image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
-service:
-  type: ClusterIP
-  port: 8080
-# keep if you want to pin nodes; otherwise remove this block
-# nodeSelector: { kubernetes.io/hostname: node-2 }
-env:
-  plain:
-    DB_ENGINE_TYPE: "MYSQL"
-  secretRef: backend-secrets
-
-## charts\app\.helmignore <a id="helmignore"></a>
-
-.git/
-.github/
-.vscode/
-*.swp
-*.bak
-*.tmp
 
 ## flattened\.flatten_ignore <a id="flatten_ignore"></a>
 
@@ -368,6 +249,120 @@ maxTokensPerFile: 25000
 useGitIgnore: true
 maxConcurrentFiles: 4
 
+## charts\app\.helmignore <a id="helmignore"></a>
+
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+## values\backend\dev.yaml <a id="dev_yaml"></a>
+
+app: {name: backend, type: backend}
+fullnameOverride: backend
+image:
+  repository: elipavlov/newsapp-backend
+  tag: latest-6b42e0e
+service:
+  type: ClusterIP
+  port: 8080
+# keep if you want to pin nodes; otherwise remove this block
+# nodeSelector: { kubernetes.io/hostname: node-2 }
+env:
+  plain:
+    DB_ENGINE_TYPE: "MYSQL"
+  secretRef: backend-secrets
+
+## charts\mysql\Chart.yaml <a id="Chart_yaml"></a>
+
+apiVersion: v2
+name: mysql
+description: Minimal MySQL for newsapp
+type: application
+version: 0.1.0
+appVersion: "8.0"
+
+## charts\app\templates\deployment.yaml <a id="deployment_yaml"></a>
+
+### Dependencies
+
+- `{{ .Values.image.repository }}:{{ .Values.image.tag }}`
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
 ## values\frontend\dev.yaml <a id="dev_yaml"></a>
 
 app: {name: frontend, type: frontend}
@@ -400,6 +395,37 @@ persistence:
   enabled: true
   existingClaim: mysql-pvc-development
   size: 5Gi
+
+## charts\app\templates\hpa.yaml <a id="hpa_yaml"></a>
+
+{{- if .Values.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
+    {{- if .Values.hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
 
 ## charts\app\templates\ingress.yaml <a id="ingress_yaml"></a>
 
@@ -436,53 +462,6 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 {{- end }}
-
-## needed_envs <a id="needed_envs"></a>
-
-VITE_SERVER_URL= {{VITE_SERVER_URL}}
-VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
-# MONGO | MONGOOSE | POSTGRES | MYSQL
-DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
-# connection string : [protocol]://[username]:[password]@[host]/[database name]
-DB_URI={{DB_URI}}
-## charts\mysql\templates\prepare-storage.yaml <a id="prepare-storage_yaml"></a>
-
-### Dependencies
-
-- `alpine:3.20`
-
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: mysql-prepare-storage
-  labels:
-    app.kubernetes.io/name: mysql
-spec:
-  backoffLimit: 2
-  template:
-    spec:
-      restartPolicy: OnFailure
-      nodeSelector:
-{{- if .Values.nodeSelector }}
-{{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-      containers:
-        - name: mkdir
-          image: alpine:3.20
-          command: ["/bin/sh","-c"]
-          args:
-            - |
-              set -e
-              mkdir -p /mnt/data/mysql-{{ .Release.Namespace }}
-              echo "Ensured /mnt/data/mysql-{{ .Release.Namespace }}"
-          volumeMounts:
-            - name: host-mnt
-              mountPath: /mnt/data
-      volumes:
-        - name: host-mnt
-          hostPath:
-            path: /mnt/data
-            type: DirectoryOrCreate
 
 ## LICENSE <a id="LICENSE"></a>
 
@@ -694,57 +673,84 @@ spec:
 fullnameOverride: backend
 
 image:
-  repository: ghcr.io/eli-pavlov/newsapp/backend
+  repository: elipavlov/newsapp-backend
   tag: latest
 
 service:
   type: ClusterIP
   port: 8080
 
-# nodeSelector: { kubernetes.io/hostname: node-2 }
-
 env:
   plain:
     DB_ENGINE_TYPE: "MYSQL"
   secretRef: backend-secrets
 
-## charts\app\templates\hpa.yaml <a id="hpa_yaml"></a>
+## charts\mysql\templates\prepare-storage.yaml <a id="prepare-storage_yaml"></a>
 
-{{- if .Values.hpa.enabled }}
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
+### Dependencies
+
+- `alpine:3.20`
+
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: {{ include "app.fullname" . }}
+  name: mysql-prepare-storage
+  labels:
+    app.kubernetes.io/name: mysql
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: {{ include "app.fullname" . }}
-  minReplicas: {{ .Values.hpa.minReplicas }}
-  maxReplicas: {{ .Values.hpa.maxReplicas }}
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
-    {{- if .Values.hpa.targetMemoryUtilizationPercentage }}
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: {{ .Values.hpa.targetMemoryUtilizationPercentage }}
-    {{- end }}
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+{{- if .Values.nodeSelector }}
+{{ toYaml .Values.nodeSelector | indent 8 }}
 {{- end }}
+      containers:
+        - name: mkdir
+          image: alpine:3.20
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              set -e
+              mkdir -p /mnt/data/mysql-{{ .Release.Namespace }}
+              echo "Ensured /mnt/data/mysql-{{ .Release.Namespace }}"
+          volumeMounts:
+            - name: host-mnt
+              mountPath: /mnt/data
+      volumes:
+        - name: host-mnt
+          hostPath:
+            path: /mnt/data
+            type: DirectoryOrCreate
+
+## needed_envs <a id="needed_envs"></a>
+
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+## values\mysql\prod.yaml <a id="prod_yaml"></a>
+
+nodeSelector:
+  kubernetes.io/hostname: node-3
+
+mysql:
+  secretName: mysql-credentials
+
+persistence:
+  enabled: true
+  existingClaim: mysql-pvc-default
+  size: 20Gi
 
 ## values\frontend\prod.yaml <a id="prod_yaml"></a>
 
 ﻿app: { name: frontend, type: frontend }
 
 image:
-  repository: ghcr.io/eli-pavlov/newsapp/frontend
+  repository: elipavlov/newsapp-frontend
   tag: latest
 
 service:
@@ -758,24 +764,53 @@ securityContext:
 
 env:
   plain:
-    # FE talks to its own Nginx at /api; Nginx proxies to backend service in the same namespace.
+    # FE talks to its own Nginx at /api; actions set the proxy target each deploy.
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: "backend-app.default.svc.cluster.local"
+    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
     BACKEND_SERVICE_PORT: "8080"
 
-## values\mysql\prod.yaml <a id="prod_yaml"></a>
+## clusters\dev\project.yaml <a id="project_yaml"></a>
 
-nodeSelector:
-  kubernetes.io/hostname: node-3
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
 
-mysql:
-  secretName: mysql-credentials
+## clusters\prod\project.yaml <a id="project_yaml"></a>
 
-persistence:
-  enabled: true
-  existingClaim: mysql-pvc-default
-  size: 20Gi
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
 
 ## charts\mysql\templates\pv.yaml <a id="pv_yaml"></a>
 
@@ -807,62 +842,6 @@ spec:
                 - "node-3"
 {{- end }}
 
-## clusters\prod\project.yaml <a id="project_yaml"></a>
-
-﻿apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  description: Production project for newsapp
-  sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-  destinations:
-    - namespace: default
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
-
-## clusters\dev\project.yaml <a id="project_yaml"></a>
-
-﻿apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: newsapp-dev
-  namespace: argocd
-spec:
-  description: Development project for newsapp
-  sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-  destinations:
-    - namespace: development
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
-
-## charts\mysql\templates\pvc.yaml <a id="pvc_yaml"></a>
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Values.persistence.existingClaim | default (printf "mysql-pvc-%s" .Release.Namespace) }}
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: {{ .Values.persistence.size | default "10Gi" }}
-  storageClassName: local-path
-  volumeName: mysql-pv-{{ .Release.Namespace }}
-
 ## charts\mysql\templates\service.yaml <a id="service_yaml"></a>
 
 apiVersion: v1
@@ -879,6 +858,20 @@ spec:
     - name: mysql
       port: 3306
       targetPort: 3306
+
+## charts\mysql\templates\pvc.yaml <a id="pvc_yaml"></a>
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.persistence.existingClaim | default (printf "mysql-pvc-%s" .Release.Namespace) }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size | default "10Gi" }}
+  storageClassName: local-path
+  volumeName: mysql-pv-{{ .Release.Namespace }}
 
 ## clusters\dev\apps\stack.yaml <a id="stack_yaml"></a>
 
@@ -936,30 +929,61 @@ spec:
       - ApplyOutOfSyncOnly=true
       - RespectIgnoreDifferences=true
 
-## charts\app\templates\service.yaml <a id="service_yaml"></a>
+## clusters\prod\apps\stack.yaml <a id="stack_yaml"></a>
 
-apiVersion: v1
-kind: Service
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  annotations:
-    {{- /* Sync waves: backend=1, frontend=2 */ -}}
-    {{- $wave := "1" -}}
-    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
-    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+  name: newsapp-prod
+  namespace: argocd
 spec:
-  type: {{ .Values.service.type }}
-  selector:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  ports:
-    - name: http
-      port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
-      nodePort: {{ .Values.service.nodePort }}
-      {{- end }}
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    # 0) SealedSecrets (namespace-scoped to "default")
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: sealed/backend/prod
+      directory:
+        recurse: true
+
+    # 1) DB (PV/PVC + StatefulSet + Service) on node-3
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/mysql
+      helm:
+        releaseName: mysql
+        valueFiles:
+          - values/mysql/prod.yaml
+
+    # 2) Backend (uses backend-secrets.DB_URI)
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        releaseName: backend
+        valueFiles:
+          - values/backend/prod.yaml
+
+    # 3) Frontend (Nginx proxies to backend-app.default.svc.cluster.local:8080)
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        releaseName: frontend
+        valueFiles:
+          - values/frontend/prod.yaml
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
 
 ## charts\mysql\templates\statefulset.yaml <a id="statefulset_yaml"></a>
 
@@ -1024,62 +1048,6 @@ spec:
         storageClassName: local-path
 {{- end }}
 
-## clusters\prod\apps\stack.yaml <a id="stack_yaml"></a>
-
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  project: newsapp-prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  sources:
-    # 0) SealedSecrets (namespace-scoped to "default")
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: sealed/backend/prod
-      directory:
-        recurse: true
-
-    # 1) DB (PV/PVC + StatefulSet + Service) on node-3
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/mysql
-      helm:
-        releaseName: mysql
-        valueFiles:
-          - values/mysql/prod.yaml
-
-    # 2) Backend (uses backend-secrets.DB_URI)
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/app
-      helm:
-        releaseName: backend
-        valueFiles:
-          - values/backend/prod.yaml
-
-    # 3) Frontend (Nginx proxies to backend-app.default.svc.cluster.local:8080)
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/app
-      helm:
-        releaseName: frontend
-        valueFiles:
-          - values/frontend/prod.yaml
-
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
-
 ## charts\app\values.yaml <a id="values_yaml"></a>
 
 app:
@@ -1114,6 +1082,31 @@ env:
 
 securityContext:
   addNetBindService: false # needed if binding <1024 like port 80 as non-root
+
+## charts\app\templates\service.yaml <a id="service_yaml"></a>
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
 
 ## charts\mysql\values.yaml <a id="values_yaml"></a>
 
@@ -1158,34 +1151,33 @@ Below is a visualization of file dependencies in the codebase:
 ```mermaid
 graph LR
   F1_c:\Users\Lenovo\newsapp-manifests_README.md["README.md"]
-  F2_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_deployment.yaml["deployment.yaml"]
-  F3_c:\Users\Lenovo\newsapp-manifests\charts\mysql_Chart.yaml["Chart.yaml"]
-  F4_c:\Users\Lenovo\newsapp-manifests\charts\app_Chart.yaml["Chart.yaml"]
-  F5_c:\Users\Lenovo\newsapp-manifests\_docs_.project_structure_ignore[".project_structure_ignore"]
-  F6_c:\Users\Lenovo\newsapp-manifests\values\backend_dev.yaml["dev.yaml"]
-  F7_c:\Users\Lenovo\newsapp-manifests\flattened_.flatten_ignore[".flatten_ignore"]
-  F8_c:\Users\Lenovo\newsapp-manifests\charts\app_.helmignore[".helmignore"]
-  F9_c:\Users\Lenovo\newsapp-manifests\values\frontend_dev.yaml["dev.yaml"]
-  F10_c:\Users\Lenovo\newsapp-manifests\values\mysql_dev.yaml["dev.yaml"]
-  F11_c:\Users\Lenovo\newsapp-manifests_needed_envs["needed_envs"]
-  F12_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_ingress.yaml["ingress.yaml"]
-  F13_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_prepare-storage.yaml["prepare-storage.yaml"]
-  F14_c:\Users\Lenovo\newsapp-manifests_LICENSE["LICENSE"]
-  F15_c:\Users\Lenovo\newsapp-manifests\values\backend_prod.yaml["prod.yaml"]
-  F16_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_hpa.yaml["hpa.yaml"]
+  F2_c:\Users\Lenovo\newsapp-manifests\charts\app_Chart.yaml["Chart.yaml"]
+  F3_c:\Users\Lenovo\newsapp-manifests\flattened_.flatten_ignore[".flatten_ignore"]
+  F4_c:\Users\Lenovo\newsapp-manifests\charts\app_.helmignore[".helmignore"]
+  F5_c:\Users\Lenovo\newsapp-manifests\values\backend_dev.yaml["dev.yaml"]
+  F6_c:\Users\Lenovo\newsapp-manifests\charts\mysql_Chart.yaml["Chart.yaml"]
+  F7_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_deployment.yaml["deployment.yaml"]
+  F8_c:\Users\Lenovo\newsapp-manifests\values\frontend_dev.yaml["dev.yaml"]
+  F9_c:\Users\Lenovo\newsapp-manifests\values\mysql_dev.yaml["dev.yaml"]
+  F10_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_hpa.yaml["hpa.yaml"]
+  F11_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_ingress.yaml["ingress.yaml"]
+  F12_c:\Users\Lenovo\newsapp-manifests_LICENSE["LICENSE"]
+  F13_c:\Users\Lenovo\newsapp-manifests\values\backend_prod.yaml["prod.yaml"]
+  F14_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_prepare-storage.yaml["prepare-storage.yaml"]
+  F15_c:\Users\Lenovo\newsapp-manifests_needed_envs["needed_envs"]
+  F16_c:\Users\Lenovo\newsapp-manifests\values\mysql_prod.yaml["prod.yaml"]
   F17_c:\Users\Lenovo\newsapp-manifests\values\frontend_prod.yaml["prod.yaml"]
-  F18_c:\Users\Lenovo\newsapp-manifests\values\mysql_prod.yaml["prod.yaml"]
-  F19_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_pv.yaml["pv.yaml"]
-  F20_c:\Users\Lenovo\newsapp-manifests\clusters\prod_project.yaml["project.yaml"]
-  F21_c:\Users\Lenovo\newsapp-manifests\clusters\dev_project.yaml["project.yaml"]
-  F22_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_pvc.yaml["pvc.yaml"]
+  F18_c:\Users\Lenovo\newsapp-manifests\clusters\dev_project.yaml["project.yaml"]
+  F19_c:\Users\Lenovo\newsapp-manifests\clusters\prod_project.yaml["project.yaml"]
+  F20_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_pv.yaml["pv.yaml"]
+  F21_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_pvc.yaml["pvc.yaml"]
+  F22_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_service.yaml["service.yaml"]
   F23_c:\Users\Lenovo\newsapp-manifests\clusters\dev\apps_stack.yaml["stack.yaml"]
-  F24_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_service.yaml["service.yaml"]
-  F25_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_service.yaml["service.yaml"]
-  F26_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_statefulset.yaml["statefulset.yaml"]
-  F27_c:\Users\Lenovo\newsapp-manifests\clusters\prod\apps_stack.yaml["stack.yaml"]
-  F28_c:\Users\Lenovo\newsapp-manifests\charts\app_values.yaml["values.yaml"]
-  F29_c:\Users\Lenovo\newsapp-manifests\charts\mysql_values.yaml["values.yaml"]
+  F24_c:\Users\Lenovo\newsapp-manifests\clusters\prod\apps_stack.yaml["stack.yaml"]
+  F25_c:\Users\Lenovo\newsapp-manifests\charts\mysql\templates_statefulset.yaml["statefulset.yaml"]
+  F26_c:\Users\Lenovo\newsapp-manifests\charts\app\templates_service.yaml["service.yaml"]
+  F27_c:\Users\Lenovo\newsapp-manifests\charts\app_values.yaml["values.yaml"]
+  F28_c:\Users\Lenovo\newsapp-manifests\charts\mysql_values.yaml["values.yaml"]
 ```
 
 ### Class Relationships
