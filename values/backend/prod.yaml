@@ -1,12 +1,12 @@
 frontend:
-  app: { name: frontend, type: frontend }
+  app: {name: frontend, type: frontend}
   image:
     repository: elipavlov/newsapp-frontend
     tag: latest-ee2e95e
   service:
     type: ClusterIP
     port: 80
-  nodeSelector: { kubernetes.io/hostname: node-1 }
+  nodeSelector: {kubernetes.io/hostname: node-1}
   securityContext:
     addNetBindService: true
   env:
@@ -28,3 +28,9 @@ frontend:
     tls:
       - hosts: ["news.example.com"]
         secretName: newsapp-tls
+image:
+  repository: elipavlov/newsapp-backend
+  tag: latest-6b42e0e
+env:
+  plain:
+    DB_ENGINE_TYPE: POSTGRES
