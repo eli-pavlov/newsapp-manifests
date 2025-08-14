@@ -1,13 +1,13 @@
-﻿app: { name: backend, type: backend }
+app: {name: backend, type: backend}
 image:
-  repository: ghcr.io/eli-pavlov/newsapp/backend
-  tag: latest
+  repository: elipavlov/newsapp-backend
+  tag: latest-6b42e0e
 service:
   type: NodePort
   port: 8080
-  nodePort: 30001        # valid NodePort range
-nodeSelector: { kubernetes.io/hostname: node-2 }
+  nodePort: 30001 # valid NodePort range
+nodeSelector: {kubernetes.io/hostname: node-2}
 env:
   plain:
     DB_ENGINE_TYPE: "MYSQL"
-  secretRef: backend-secrets  # CI creates this with DB_URI
+  secretRef: backend-secrets # CI creates this with DB_URI
