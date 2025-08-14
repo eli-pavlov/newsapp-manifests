@@ -1,4 +1,4 @@
-﻿app: { name: frontend, type: frontend }
+app: { name: frontend, type: frontend }
 image:
   repository: ghcr.io/eli-pavlov/newsapp/frontend
   tag: latest
