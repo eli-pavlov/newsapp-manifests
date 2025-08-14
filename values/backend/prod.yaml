@@ -3,7 +3,7 @@ image:
   repository: ghcr.io/eli-pavlov/newsapp/backend
   tag: latest
 service:
-  type: NodePort
+  type: ClusterIP
   port: 8080
   nodePort: 30001
 nodeSelector: { kubernetes.io/hostname: node-2 }

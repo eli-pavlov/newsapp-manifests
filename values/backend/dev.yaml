@@ -3,7 +3,7 @@ image:
   repository: elipavlov/newsapp-backend
   tag: latest-6b42e0e
 service:
-  type: NodePort
+  type: ClusterIP
   port: 8080
   nodePort: 30001 # valid NodePort range
 nodeSelector: {kubernetes.io/hostname: node-2}

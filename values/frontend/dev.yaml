@@ -5,9 +5,9 @@ image:
 service:
   type: ClusterIP
   port: 80
-  hostPort: 3080                  # exposed on node-1:3080
+  hostPort: 3080
 nodeSelector: { kubernetes.io/hostname: node-1 }
 env:
   plain:
-    VITE_SERVER_URL: "http://NODE2_IP:30001"    # CI will replace NODE2_IP
+    VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
