@@ -1,11 +1,13 @@
-﻿nameOverride: frontend
-replicaCount: 1
+﻿app: { name: frontend, type: frontend }
 image:
-  repository: your-registry.example.com/newsapp/frontend
-  tag: dev
-containerPort: 80
+  repository: ghcr.io/eli-pavlov/newsapp/frontend
+  tag: latest
 service:
+  type: NodePort
   port: 80
-ingress:
-  enabled: false
-resources: {}
+  nodePort: 3080        # exposed on node-1:3080
+nodeSelector: { kubernetes.io/hostname: node-1 }
+env:
+  plain:
+    VITE_SERVER_URL: "http://NODE1_OR_NODE2_IP:3001"   # CI will replace
+    VITE_NEWS_INTERVAL_IN_MIN: "5"

@@ -1,0 +1,5 @@
+nodeSelector: { kubernetes.io/hostname: node-3 }
+mysql:
+  secretName: mysql-credentials
+persistence:
+  size: 20Gi

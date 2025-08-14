@@ -1,44 +1,46 @@
-nameOverride: ""
-fullnameOverride: ""
-
-replicaCount: 1
+app:
+  name: app
+  type: backend # or "frontend"
 
 image:
   repository: ""
-  tag: ""
+  tag: "latest"
   pullPolicy: IfNotPresent
 
-containerPort: 8080
+replicaCount: 1
 
 service:
-  type: ClusterIP
-  port: 80
-  targetPort: null  # if null defaults to .Values.containerPort
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts: []         # e.g. [{ host: "app.example.com", paths: [{ path: "/", pathType: Prefix }]}]
-  tls: []           # e.g. [{ hosts: ["app.example.com"], secretName: "app-tls" }]
-
-env: []             # e.g. [{ name: "NODE_ENV", value: "production" }]
-envFrom: []         # e.g. [{ secretRef: { name: "my-secret" }}]
+  type: ClusterIP  # ClusterIP | NodePort
+  port: 80         # containerPort / service port
+  nodePort: null   # e.g. 3080 for dev frontend
+  hostPort: null   # e.g. 80 for prod frontend (requires capability)
 
 resources: {}
+
 nodeSelector: {}
 tolerations: []
-affinity: {}
+affinity: []
 
-serviceAccount:
-  create: false
-  name: ""
+imagePullSecrets: []
 
-podAnnotations: {}
+env:
+  # literal envs (e.g. frontend VITE_* and backend DB_ENGINE_TYPE)
+  plain: {}     # key: value
+  # bring in a secret as env (e.g. backend DB_URI)
+  secretRef: "" # e.g. backend-secrets
+  # optional configmap
+  configRef: ""
 
-hpa:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+securityContext:
+  # allow container to bind <1024 like port 80 if image runs non-root
+  addNetBindService: false
+
+# Frontend extras
+frontend:
+  # If you also want a NodePort instead of hostPort, set service.type=NodePort and nodePort
+  # For hostPort exposure set service.hostPort=80 and securityContext.addNetBindService=true if non-root
+
+# Backend extras
+backend:
+  # expose backend via NodePort for the browser
+  nodePort: 3001

@@ -1,28 +1,13 @@
-﻿nameOverride: backend
-replicaCount: 2
+﻿app: { name: backend, type: backend }
 image:
-  repository: your-registry.example.com/newsapp/backend
-  tag: prod
-containerPort: 3000
+  repository: ghcr.io/eli-pavlov/newsapp/backend
+  tag: latest
 service:
-  port: 3000
-ingress:
-  enabled: true
-  className: nginx
-  hosts:
-    - host: backend.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
-hpa:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 5
-  targetCPUUtilizationPercentage: 70
+  type: NodePort
+  port: 8080
+  nodePort: 3001
+nodeSelector: { kubernetes.io/hostname: node-2 }
+env:
+  plain:
+    DB_ENGINE_TYPE: "MYSQL"
+  secretRef: backend-secrets

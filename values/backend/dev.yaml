@@ -1,14 +1,13 @@
-﻿nameOverride: backend
-replicaCount: 1
+﻿app: { name: backend, type: backend }
 image:
-  repository: your-registry.example.com/newsapp/backend
-  tag: dev
-containerPort: 3000
+  repository: ghcr.io/eli-pavlov/newsapp/backend
+  tag: latest
 service:
-  port: 3000
-ingress:
-  enabled: false
+  type: NodePort
+  port: 8080
+  nodePort: 3001            # browser hits http://<node-ip>:3001
+nodeSelector: { kubernetes.io/hostname: node-2 }
 env:
-  - name: NODE_ENV
-    value: development
-resources: {}
+  plain:
+    DB_ENGINE_TYPE: "MYSQL"
+  secretRef: backend-secrets  # provides DB_URI (CI creates/updates this Secret)

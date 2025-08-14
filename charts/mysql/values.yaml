@@ -1,0 +1,23 @@
+image:
+  repository: mysql
+  tag: "8.0"
+  pullPolicy: IfNotPresent
+
+mysql:
+  database: newsapp
+  port: 3306
+  # These come from a Secret created by CI/CD:
+  secretName: mysql-credentials  # keys: MYSQL_ROOT_PASSWORD, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+
+persistence:
+  enabled: true
+  storageClass: ""   # set if needed
+  size: 10Gi
+
+nodeSelector: {}     # e.g. { kubernetes.io/hostname: node-3 }
+tolerations: []
+affinity: {}
+
+service:
+  type: ClusterIP
+  port: 3306
