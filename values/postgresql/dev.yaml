@@ -1,0 +1,15 @@
+# values/postgresql/dev.yaml (consumed by charts/newsapp)
+postgresql:
+  image:
+    repository: postgres
+    tag: "16-alpine"
+  postgresql:
+    port: 5432
+    secretName: postgres-credentials
+  persistence:
+    enabled: true
+    size: 5Gi
+    existingClaim: postgresql-pvc-development
+  service:
+    type: ClusterIP
+    port: 5432

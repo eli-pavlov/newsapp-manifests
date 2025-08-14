@@ -16,31 +16,15 @@ spec:
       directory:
         recurse: true
 
-    # 1) DB (PV/PVC + StatefulSet + Service) on node-3
+    # 1) Umbrella chart (deploys postgresql + backend + frontend)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
-      path: charts/mysql
+      path: charts/newsapp
       helm:
-        releaseName: mysql
+        releaseName: newsapp
         valueFiles:
-          - values/mysql/dev.yaml
-
-    # 2) Backend (uses backend-secrets.DB_URI)
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/app
-      helm:
-        releaseName: backend
-        valueFiles:
+          - values/postgresql/dev.yaml
           - values/backend/dev.yaml
-
-    # 3) Frontend (Nginx proxies to backend-app.development.svc.cluster.local:8080)
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/app
-      helm:
-        releaseName: frontend
-        valueFiles:
           - values/frontend/dev.yaml
 
   syncPolicy:

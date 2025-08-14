@@ -8,5 +8,5 @@ service:
   port: 8080
 env:
   plain:
-    DB_ENGINE_TYPE: "MYSQL"
+    DB_ENGINE_TYPE: "POSTGRES"
   secretRef: backend-secrets

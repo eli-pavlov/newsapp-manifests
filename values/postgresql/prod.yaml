@@ -1,0 +1,14 @@
+nodeSelector:
+  kubernetes.io/hostname: node-3
+
+postgresql:
+  secretName: postgres-credentials
+
+persistence:
+  enabled: true
+  existingClaim: postgresql-pvc-default
+  size: 20Gi
+
+service:
+  type: ClusterIP
+  port: 5432

@@ -1,0 +1,13 @@
+# charts/postgresql/values.yaml
+image:
+  repository: postgres
+  tag: "16-alpine"
+postgresql:
+  port: 5432
+  secretName: postgres-credentials
+persistence:
+  enabled: true
+  size: 10Gi
+service:
+  type: ClusterIP
+  port: 5432

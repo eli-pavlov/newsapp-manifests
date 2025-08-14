@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: mysql-prepare-storage
+  name: postgresql-prepare-storage
   labels:
-    app.kubernetes.io/name: mysql
+    app.kubernetes.io/name: postgresql
 spec:
   backoffLimit: 2
   template:
     spec:
       restartPolicy: OnFailure
-      nodeSelector:
 {{- if .Values.nodeSelector }}
+      nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
 {{- end }}
       containers:
@@ -20,8 +20,8 @@ spec:
           args:
             - |
               set -e
-              mkdir -p /mnt/data/mysql-{{ .Release.Namespace }}
-              echo "Ensured /mnt/data/mysql-{{ .Release.Namespace }}"
+              mkdir -p /mnt/data/postgresql-{{ .Release.Namespace }}
+              echo "Ensured /mnt/data/postgresql-{{ .Release.Namespace }}"
           volumeMounts:
             - name: host-mnt
               mountPath: /mnt/data
