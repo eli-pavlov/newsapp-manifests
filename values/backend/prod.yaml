@@ -5,7 +5,7 @@ image:
 service:
   type: NodePort
   port: 8080
-  nodePort: 3001
+  nodePort: 30001
 nodeSelector: { kubernetes.io/hostname: node-2 }
 env:
   plain:

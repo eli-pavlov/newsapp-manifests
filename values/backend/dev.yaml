@@ -5,9 +5,9 @@ image:
 service:
   type: NodePort
   port: 8080
-  nodePort: 3001            # browser hits http://<node-ip>:3001
+  nodePort: 30001        # valid NodePort range
 nodeSelector: { kubernetes.io/hostname: node-2 }
 env:
   plain:
     DB_ENGINE_TYPE: "MYSQL"
-  secretRef: backend-secrets  # provides DB_URI (CI creates/updates this Secret)
+  secretRef: backend-secrets  # CI creates this with DB_URI

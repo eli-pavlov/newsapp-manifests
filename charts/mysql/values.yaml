@@ -6,12 +6,12 @@ image:
 mysql:
   database: newsapp
   port: 3306
-  # These come from a Secret created by CI/CD:
+  # Populated via Secret the CI creates:
   secretName: mysql-credentials  # keys: MYSQL_ROOT_PASSWORD, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
 
 persistence:
   enabled: true
-  storageClass: ""   # set if needed
+  storageClass: ""   # set if your cluster needs an explicit class
   size: 10Gi
 
 nodeSelector: {}     # e.g. { kubernetes.io/hostname: node-3 }

@@ -13,8 +13,7 @@ spec:
     targetRevision: main
     path: charts/mysql
     helm:
-      valueFiles:
-        - values/mysql/prod.yaml
+      valueFiles: ["values/mysql/prod.yaml"]
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: ["CreateNamespace=true"]

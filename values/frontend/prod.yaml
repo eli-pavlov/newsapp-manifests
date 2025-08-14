@@ -5,11 +5,11 @@ image:
 service:
   type: ClusterIP
   port: 80
-  hostPort: 80          # bind host port 80 on node-1
+  hostPort: 80                    # exposed on node-1:80
 nodeSelector: { kubernetes.io/hostname: node-1 }
 securityContext:
-  addNetBindService: true
+  addNetBindService: true         # allow bind to port 80 for non-root images
 env:
   plain:
-    VITE_SERVER_URL: "http://NODE1_OR_NODE2_IP:3001"   # CI will replace
+    VITE_SERVER_URL: "http://NODE2_IP:30001"    # CI will replace NODE2_IP
     VITE_NEWS_INTERVAL_IN_MIN: "5"

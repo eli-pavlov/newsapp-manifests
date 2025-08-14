@@ -3,11 +3,11 @@ image:
   repository: ghcr.io/eli-pavlov/newsapp/frontend
   tag: latest
 service:
-  type: NodePort
+  type: ClusterIP
   port: 80
-  nodePort: 3080        # exposed on node-1:3080
+  hostPort: 3080                  # exposed on node-1:3080
 nodeSelector: { kubernetes.io/hostname: node-1 }
 env:
   plain:
-    VITE_SERVER_URL: "http://NODE1_OR_NODE2_IP:3001"   # CI will replace
+    VITE_SERVER_URL: "http://NODE2_IP:30001"    # CI will replace NODE2_IP
     VITE_NEWS_INTERVAL_IN_MIN: "5"

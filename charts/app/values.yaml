@@ -10,10 +10,10 @@ image:
 replicaCount: 1
 
 service:
-  type: ClusterIP  # ClusterIP | NodePort
-  port: 80         # containerPort / service port
-  nodePort: null   # e.g. 3080 for dev frontend
-  hostPort: null   # e.g. 80 for prod frontend (requires capability)
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30001 for backend
+  hostPort: null    # e.g. 80 for prod FE, 3080 for dev FE
 
 resources: {}
 
@@ -24,23 +24,9 @@ affinity: []
 imagePullSecrets: []
 
 env:
-  # literal envs (e.g. frontend VITE_* and backend DB_ENGINE_TYPE)
-  plain: {}     # key: value
-  # bring in a secret as env (e.g. backend DB_URI)
-  secretRef: "" # e.g. backend-secrets
-  # optional configmap
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
   configRef: ""
 
 securityContext:
-  # allow container to bind <1024 like port 80 if image runs non-root
-  addNetBindService: false
-
-# Frontend extras
-frontend:
-  # If you also want a NodePort instead of hostPort, set service.type=NodePort and nodePort
-  # For hostPort exposure set service.hostPort=80 and securityContext.addNetBindService=true if non-root
-
-# Backend extras
-backend:
-  # expose backend via NodePort for the browser
-  nodePort: 3001
+  addNetBindService: false # needed if binding <1024 like port 80 as non-root
