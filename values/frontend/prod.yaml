@@ -14,7 +14,7 @@ env:
     VITE_NEWS_INTERVAL_IN_MIN: "5"          # (build-time in CI, here for doc)
     BACKEND_SERVICE_HOST: ""
     BACKEND_SERVICE_PORT: ""
-
+    
 ingress:
   enabled: true
   className: nginx
