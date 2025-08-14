@@ -4,18 +4,25 @@ metadata:
   name: backend-dev
   namespace: argocd
 spec:
-  project: newsapp
-  source:
-    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-    targetRevision: main
-    path: charts/backend
-    helm:
-      valueFiles:
-        - ../../values/backend/dev.yaml
+  project: default
   destination:
     server: https://kubernetes.default.svc
     namespace: backend
+  sources:
+    # 1) The chart itself
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/backend
+      helm:
+        valueFiles:
+          - $values/values/backend/dev.yaml
+    # 2) A values-only source (same repo) that defines the $values root
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
