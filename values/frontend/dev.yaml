@@ -1,13 +1,15 @@
-﻿app: { name: frontend, type: frontend }
+app: {name: frontend, type: frontend}
 image:
-  repository: ghcr.io/eli-pavlov/newsapp/frontend
-  tag: latest
+  repository: elipavlov/newsapp-frontend
+  tag: latest-ee2e95e
 service:
   type: ClusterIP
   port: 80
-  hostPort: 3080                  # exposed on node-1:3080
-nodeSelector: { kubernetes.io/hostname: node-1 }
+  hostPort: 3080 # exposed on node-1:3080
+nodeSelector: {kubernetes.io/hostname: node-1}
 env:
   plain:
-    VITE_SERVER_URL: "http://NODE2_IP:30001"    # CI will replace NODE2_IP
+    VITE_SERVER_URL: "/api" # CI will replace NODE2_IP
     VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: ""
+    BACKEND_SERVICE_PORT: ""
