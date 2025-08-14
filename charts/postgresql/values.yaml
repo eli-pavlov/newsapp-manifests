@@ -2,12 +2,21 @@
 image:
   repository: postgres
   tag: "16-alpine"
+  pullPolicy: IfNotPresent
+
 postgresql:
   port: 5432
-  secretName: postgres-credentials
+  secretName: postgres-credentials  # keys: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+
 persistence:
   enabled: true
+  storageClass: ""
   size: 10Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
 service:
   type: ClusterIP
   port: 5432

@@ -1,21 +1,6 @@
-image:
-  repository: postgres
-  tag: "16-alpine"
-  pullPolicy: IfNotPresent
-
-postgresql:
-  port: 5432
-  secretName: postgres-credentials  # keys: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
-
-persistence:
-  enabled: true
-  storageClass: ""
-  size: 10Gi
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
-
-service:
-  type: ClusterIP
-  port: 5432
+apiVersion: v2
+name: postgresql
+description: Minimal PostgreSQL for newsapp
+type: application
+version: 0.1.0
+appVersion: "16"

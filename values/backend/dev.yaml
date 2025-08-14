@@ -1,12 +1,13 @@
-app: {name: backend, type: backend}
-fullnameOverride: backend
-image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
-service:
-  type: ClusterIP
-  port: 8080
-env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-secrets
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-6b42e0e
+  service:
+    type: ClusterIP
+    port: 8080
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-secrets
