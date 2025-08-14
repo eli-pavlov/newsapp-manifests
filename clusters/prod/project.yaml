@@ -1,15 +1,20 @@
 ﻿apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: newsapp
+  name: newsapp-prod
   namespace: argocd
 spec:
-  description: NewsApp project
+  description: Prod project for newsapp
   destinations:
-    - namespace: "*"
+    - namespace: backend
+      server: https://kubernetes.default.svc
+    - namespace: frontend
       server: https://kubernetes.default.svc
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git
   clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

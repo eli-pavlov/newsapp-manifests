@@ -1,14 +1,28 @@
-﻿image:
-  repository: ghcr.io/eli-pavlov/newsapp-frontend
-  tag: latest
+﻿nameOverride: frontend
+replicaCount: 2
+image:
+  repository: your-registry.example.com/newsapp/frontend
+  tag: prod
+containerPort: 80
 service:
-  type: ClusterIP
   port: 80
 ingress:
   enabled: true
   className: nginx
   hosts:
-    - host: app.example.com
+    - host: news.example.com
       paths:
         - path: /
           pathType: Prefix
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70

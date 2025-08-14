@@ -1,0 +1,44 @@
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: null  # if null defaults to .Values.containerPort
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []         # e.g. [{ host: "app.example.com", paths: [{ path: "/", pathType: Prefix }]}]
+  tls: []           # e.g. [{ hosts: ["app.example.com"], secretName: "app-tls" }]
+
+env: []             # e.g. [{ name: "NODE_ENV", value: "production" }]
+envFrom: []         # e.g. [{ secretRef: { name: "my-secret" }}]
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+serviceAccount:
+  create: false
+  name: ""
+
+podAnnotations: {}
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80

@@ -1,9 +1,11 @@
-﻿image:
-  repository: ghcr.io/eli-pavlov/newsapp-backend
-  tag: latest
+﻿nameOverride: backend
+replicaCount: 2
+image:
+  repository: your-registry.example.com/newsapp/backend
+  tag: prod
+containerPort: 3000
 service:
-  type: ClusterIP
-  port: 8080
+  port: 3000
 ingress:
   enabled: true
   className: nginx
@@ -13,9 +15,14 @@ ingress:
         - path: /
           pathType: Prefix
 resources:
-  limits:
-    cpu: "500m"
-    memory: "512Mi"
   requests:
-    cpu: "200m"
-    memory: "256Mi"
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70

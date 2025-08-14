@@ -1,12 +1,14 @@
-﻿image:
-  repository: ghcr.io/eli-pavlov/newsapp-backend
+﻿nameOverride: backend
+replicaCount: 1
+image:
+  repository: your-registry.example.com/newsapp/backend
   tag: dev
+containerPort: 3000
 service:
-  type: ClusterIP
-  port: 8080
+  port: 3000
+ingress:
+  enabled: false
 env:
   - name: NODE_ENV
     value: development
-ingress:
-  enabled: false
 resources: {}

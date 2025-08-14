@@ -4,18 +4,23 @@ metadata:
   name: backend-prod
   namespace: argocd
 spec:
-  project: newsapp
-  source:
-    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-    targetRevision: main
-    path: charts/backend
-    helm:
-      valueFiles:
-        - ../../values/backend/prod.yaml
+  project: newsapp-prod
   destination:
     server: https://kubernetes.default.svc
     namespace: backend
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/app
+      helm:
+        valueFiles:
+          - $values/values/backend/prod.yaml
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

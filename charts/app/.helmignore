@@ -1,0 +1,6 @@
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp

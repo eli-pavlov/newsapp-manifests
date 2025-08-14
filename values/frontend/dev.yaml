@@ -1,8 +1,11 @@
-﻿image:
-  repository: ghcr.io/eli-pavlov/newsapp-frontend
+﻿nameOverride: frontend
+replicaCount: 1
+image:
+  repository: your-registry.example.com/newsapp/frontend
   tag: dev
+containerPort: 80
 service:
-  type: ClusterIP
   port: 80
 ingress:
   enabled: false
+resources: {}
