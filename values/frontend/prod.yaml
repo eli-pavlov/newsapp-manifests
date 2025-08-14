@@ -16,3 +16,17 @@ env:
     VITE_NEWS_INTERVAL_IN_MIN: "5"
     BACKEND_SERVICE_HOST: ""
     BACKEND_SERVICE_PORT: ""
+    
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+  hosts:
+    - host: news.example.com
+      paths:
+        - path: /(.*)
+          pathType: Prefix
+  tls:
+    - hosts: ["news.example.com"]
+      secretName: newsapp-tls
