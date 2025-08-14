@@ -6,3 +6,7 @@ mysql:
 
 persistence:
   size: 5Gi
+
+nodeSelector: { kubernetes.io/hostname: node-3 }
+
+
