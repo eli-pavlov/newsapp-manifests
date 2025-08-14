@@ -32,11 +32,27 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/mysql
-  volumeClaimTemplates:
+      initContainers:
+        - name: wait-for-storage
+          image: busybox
+          command:
+            - sh
+            - -c
+            - >
+              while [ ! -d /mnt/{{ .Release.Name }} ]; do
+                echo "Waiting for storage...";
+                sleep 2;
+              done
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /mnt
+
+    volumeClaimTemplates:
     - metadata:
-        name: data
+        name: mysql-data
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{ .Values.persistence.size | default "10Gi" }}
+            storage: {{ .Values.persistence.size }}
+        storageClassName: ""

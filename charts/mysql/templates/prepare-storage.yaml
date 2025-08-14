@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prepare-mysql-storage-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        kubernetes.io/hostname: node-3
+      containers:
+        - name: prepare-storage
+          image: busybox
+          command:
+            - sh
+            - -c
+            - >
+              mkdir -p /mnt/{{ .Release.Name }} &&
+              chown -R 1000:1000 /mnt/{{ .Release.Name }}
+          volumeMounts:
+            - name: mnt
+              mountPath: /mnt
+      volumes:
+        - name: mnt
+          hostPath:
+            path: /mnt
+            type: Directory
