@@ -12,8 +12,8 @@ replicaCount: 1
 service:
   type: ClusterIP   # ClusterIP | NodePort
   port: 80          # container & service port for the app
-  nodePort: null    # e.g. 30001 for backend
-  hostPort: null    # e.g. 80 for prod FE, 3080 for dev FE
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
 
 resources: {}
 
@@ -29,23 +29,19 @@ env:
   configRef: ""
 
 securityContext:
-  addNetBindService: false # needed if binding <1024 like port 80 as non-root
+  addNetBindService: false
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts: []   # example when enabled:
-  # - host: example.com
-  #   paths:
-  #     - path: /
-  #       pathType: Prefix
-  tls: []
-
-# --- NEW: provide defaults so .Values.hpa.* always exists ---
+# >>> Add this block to prevent nil-pointer in the HPA template
 hpa:
   enabled: false
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []

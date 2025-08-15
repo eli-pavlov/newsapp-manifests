@@ -1,4 +1,3 @@
-# charts/postgresql/values.yaml
 image:
   repository: postgres
   tag: "16-alpine"
@@ -10,8 +9,9 @@ postgresql:
 
 persistence:
   enabled: true
-  storageClass: ""
+  storageClass: ""   # set if your cluster needs explicit class
   size: 10Gi
+  # existingClaim: postgresql-pvc-<namespace> (override in env values if needed)
 
 nodeSelector: {}
 tolerations: []

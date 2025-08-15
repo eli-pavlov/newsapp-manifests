@@ -1,19 +1,20 @@
-app: {name: frontend, type: frontend}
+app: { name: frontend, type: frontend }
 image:
   repository: elipavlov/newsapp-frontend
   tag: latest-ee2e95e
 service:
   type: ClusterIP
   port: 80
-nodeSelector: {kubernetes.io/hostname: node-1}
+nodeSelector: { kubernetes.io/hostname: node-1 }
 securityContext:
   addNetBindService: true
 env:
   plain:
-    VITE_SERVER_URL: "/api" # (build-time in CI, here for doc)
-    VITE_NEWS_INTERVAL_IN_MIN: "5" # (build-time in CI, here for doc)
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
     BACKEND_SERVICE_HOST: ""
     BACKEND_SERVICE_PORT: ""
+
 ingress:
   enabled: true
   className: nginx
@@ -27,13 +28,3 @@ ingress:
   tls:
     - hosts: ["news.example.com"]
       secretName: newsapp-tls
-frontend:
-  image:
-    repository: elipavlov/newsapp-frontend
-    tag: latest-ee2e95e
-  env:
-    plain:
-      VITE_SERVER_URL: /api
-      VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: ""
-      BACKEND_SERVICE_PORT: ""
