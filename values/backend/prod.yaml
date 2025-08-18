@@ -1,17 +1,15 @@
-app:
-  name: backend
+app: { name: backend, type: backend }
+fullnameOverride: backend
 
 image:
-  repository: your-dockerhub/newsapp-backend
-  tag: latest-local   # CI updates this
+  repository: elipavlov/newsapp-backend
+  tag: latest-local  # CI updates
 
 service:
   type: ClusterIP
   port: 8080
 
 env:
-  secretRef:
-    name: backend-db-env
-
-postgresql:
-  enabled: false
+  plain:
+    DB_ENGINE_TYPE: "POSTGRES"
+  secretRef: backend-db-env

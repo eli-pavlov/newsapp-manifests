@@ -1,13 +1,16 @@
-app:
-  name: frontend
+app: { name: frontend, type: frontend }
 
 image:
-  repository: your-dockerhub/newsapp-frontend
-  tag: dev-local     # CI updates this
+  repository: elipavlov/newsapp-frontend
+  tag: dev-local  # CI updates
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 80
+  nodePort: 30080
+
+nodeSelector: { kubernetes.io/hostname: node-1 }
+securityContext: { addNetBindService: true }
 
 env:
   plain:

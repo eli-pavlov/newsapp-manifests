@@ -1,13 +1,15 @@
-app:
-  name: frontend
+app: { name: frontend, type: frontend }
 
 image:
-  repository: your-dockerhub/newsapp-frontend
-  tag: latest-local  # CI updates this
+  repository: elipavlov/newsapp-frontend
+  tag: latest-local  # CI updates
 
 service:
   type: ClusterIP
   port: 80
+
+nodeSelector: { kubernetes.io/hostname: node-1 }
+securityContext: { addNetBindService: true }
 
 env:
   plain:
@@ -19,12 +21,13 @@ env:
 ingress:
   enabled: true
   className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
   hosts:
     - host: news.example.com
       paths:
-        - path: /
+        - path: /(.*)
           pathType: Prefix
   tls:
-    - secretName: newsapp-tls
-      hosts:
-        - news.example.com
+    - hosts: ["news.example.com"]
+      secretName: newsapp-tls

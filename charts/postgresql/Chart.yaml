@@ -1,6 +1,0 @@
-apiVersion: v2
-name: postgresql
-description: Minimal PostgreSQL for newsapp
-type: application
-version: 0.1.0
-appVersion: "16"

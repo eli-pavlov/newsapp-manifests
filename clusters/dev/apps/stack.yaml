@@ -17,9 +17,6 @@ spec:
         valueFiles:
           - values/backend/dev.yaml
           - values/frontend/dev.yaml
-        parameters:
-          - name: postgresql.enabled
-            value: "false"
   syncPolicy:
     automated:
       prune: true

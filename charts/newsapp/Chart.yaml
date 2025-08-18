@@ -1,8 +1,8 @@
 apiVersion: v2
 name: newsapp
-description: Umbrella chart for frontend + backend + postgresql
+description: Umbrella chart for frontend + backend (no in-cluster DB)
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "1.0.0"
 
 dependencies:
@@ -13,7 +13,4 @@ dependencies:
   - name: app
     alias: frontend
     repository: "file://../app"
-    version: "0.1.0"
-  - name: postgresql
-    repository: "file://../postgresql"
     version: "0.1.0"
