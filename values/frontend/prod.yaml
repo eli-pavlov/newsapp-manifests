@@ -29,5 +29,5 @@ ingress:
         - path: /(.*)
           pathType: Prefix
   tls:
-    - hosts: ["news.example.com"]
+    - hosts: ["newsapp.weblightenment.com"]
       secretName: newsapp-tls
