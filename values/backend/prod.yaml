@@ -1,8 +1,8 @@
-app: { name: backend, type: backend }
+app: {name: backend, type: backend}
 fullnameOverride: backend
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
+  tag: latest-66766bc
 service:
   type: ClusterIP
   port: 8080
