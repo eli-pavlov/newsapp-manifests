@@ -250,9 +250,9 @@ ingress:
 // charts/newsapp/Chart.yaml
 apiVersion: v2
 name: newsapp
-description: Umbrella chart for frontend + backend + postgresql
+description: Umbrella chart for frontend + backend (no in-cluster DB)
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "1.0.0"
 
 dependencies:
@@ -264,202 +264,21 @@ dependencies:
     alias: frontend
     repository: "file://../app"
     version: "0.1.0"
-  - name: postgresql
-    repository: "file://../postgresql"
-    version: "0.1.0"
 
 // charts/newsapp/values.schema.json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "postgresql": { "type": "object" },
-    "backend":    { "type": "object" },
-    "frontend":   { "type": "object" }
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
   },
   "additionalProperties": false
 }
 
 // charts/newsapp/values.yaml
 # Intentionally empty; we pass env-specific value files from Argo CD.
-
-// charts/postgresql/Chart.yaml
-apiVersion: v2
-name: postgresql
-description: Minimal PostgreSQL for newsapp
-type: application
-version: 0.1.0
-appVersion: "16"
-
-// charts/postgresql/templates/prepare-storage.yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: postgresql-prepare-storage
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  backoffLimit: 2
-  template:
-    spec:
-      restartPolicy: OnFailure
-{{- if .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-      containers:
-        - name: mkdir
-          image: alpine:3.20
-          command: ["/bin/sh","-c"]
-          args:
-            - |
-              set -e
-              mkdir -p /mnt/data/postgresql-{{ .Release.Namespace }}
-              echo "Ensured /mnt/data/postgresql-{{ .Release.Namespace }}"
-          volumeMounts:
-            - name: host-mnt
-              mountPath: /mnt/data
-      volumes:
-        - name: host-mnt
-          hostPath:
-            path: /mnt/data
-            type: DirectoryOrCreate
-
-// charts/postgresql/templates/pv.yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: postgresql-pv-{{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  capacity:
-    storage: {{ .Values.persistence.size | default "10Gi" }}
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-path
-  local:
-    path: /mnt/data/postgresql-{{ .Release.Namespace }}
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                {{- if and .Values.nodeSelector (hasKey .Values.nodeSelector "kubernetes.io/hostname") }}
-                - {{ index .Values.nodeSelector "kubernetes.io/hostname" | quote }}
-                {{- else }}
-                - "node-3"
-                {{- end }}
-
-// charts/postgresql/templates/pvc.yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Values.persistence.existingClaim | default (printf "postgresql-pvc-%s" .Release.Namespace) }}
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: {{ .Values.persistence.size | default "10Gi" }}
-  storageClassName: local-path
-  volumeName: postgresql-pv-{{ .Release.Namespace }}
-
-// charts/postgresql/templates/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgresql
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  type: {{ .Values.service.type }}
-  selector:
-    app.kubernetes.io/name: postgresql
-  ports:
-    - name: postgresql
-      port: {{ .Values.service.port }}
-      targetPort: 5432
-
-// charts/postgresql/templates/statefulset.yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgresql
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  serviceName: postgresql
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: postgresql
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: postgresql
-    spec:
-{{- if .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-      containers:
-        - name: postgresql
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
-            - name: POSTGRES_DB
-              valueFrom: { secretKeyRef: { name: {{ .Values.postgresql.secretName | quote }}, key: POSTGRES_DB } }
-            - name: POSTGRES_USER
-              valueFrom: { secretKeyRef: { name: {{ .Values.postgresql.secretName | quote }}, key: POSTGRES_USER } }
-            - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: {{ .Values.postgresql.secretName | quote }}, key: POSTGRES_PASSWORD } }
-          ports:
-            - containerPort: 5432
-              name: postgresql
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-{{- if .Values.persistence.existingClaim }}
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaim }}
-{{- else }}
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: {{ .Values.persistence.size | default "10Gi" }}
-        storageClassName: local-path
-{{- end }}
-
-// charts/postgresql/values.yaml
-image:
-  repository: postgres
-  tag: "16-alpine"
-  pullPolicy: IfNotPresent
-
-postgresql:
-  port: 5432
-  secretName: postgres-credentials  # keys: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
-
-persistence:
-  enabled: true
-  storageClass: ""   # set if your cluster needs explicit class
-  size: 10Gi
-  # existingClaim: postgresql-pvc-<namespace> (override in env values if needed)
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
-
-service:
-  type: ClusterIP
-  port: 5432
+# Values come from env-specific files chosen by Argo CD.
 
 // clusters/dev/apps/stack.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -473,24 +292,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: development
   sources:
-    # 0) SealedSecrets (namespace-scoped to "development")
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: sealed/backend/dev
-      directory:
-        recurse: true
-
-    # 1) Umbrella chart (deploys postgresql + backend + frontend)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
       helm:
         releaseName: newsapp
         valueFiles:
-          - values/postgresql/dev.yaml
           - values/backend/dev.yaml
           - values/frontend/dev.yaml
-
   syncPolicy:
     automated:
       prune: true
@@ -532,24 +341,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
   sources:
-    # 0) SealedSecrets (namespace-scoped to "default")
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: sealed/backend/prod
-      directory:
-        recurse: true
-
-    # 1) Umbrella chart
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
       helm:
         releaseName: newsapp
         valueFiles:
-          - values/postgresql/prod.yaml
           - values/backend/prod.yaml
           - values/frontend/prod.yaml
-
   syncPolicy:
     automated:
       prune: true
@@ -579,876 +378,6 @@ spec:
     - group: '*'
       kind: '*'
 
-// CodeFlattened_Output/newsapp-manifests_flattened.md
-Repository Summary:
-Files analyzed: 27
-Directories scanned: 98
-Total size: 16.65 KB (17052 bytes)
-Estimated tokens: 4263
-Processing time: 0.15 seconds
-
-
-## Table of Contents
-
-- [Project Summary](#project-summary)
-- [Directory Structure](#directory-structure)
-- [Files Content](#files-content)
-  - Files By Category:
-    - Configuration (25 files):
-      - [Chart.yaml](#Chart_yaml) - 161 bytes
-      - [Chart.yaml](#Chart_yaml) - 434 bytes
-      - [Chart.yaml](#Chart_yaml) - 363 bytes
-      - [deployment.yaml](#deployment_yaml) - 2.5 KB
-      - [dev.yaml](#dev_yaml) - 257 bytes
-      - [dev.yaml](#dev_yaml) - 570 bytes
-      - [dev.yaml](#dev_yaml) - 345 bytes
-      - [hpa.yaml](#hpa_yaml) - 823 bytes
-      - [ingress.yaml](#ingress_yaml) - 915 bytes
-      - [prepare-storage.yaml](#prepare-storage_yaml) - 855 bytes
-      - [and 15 more Configuration files...]
-    - Other (2 files):
-      - [.helmignore](#_helmignore) - 48 bytes
-      - [needed_envs](#needed_envs) - 268 bytes
-- [Architecture and Relationships](#architecture-and-relationships)
-  - [File Dependencies](#file-dependencies)
-  - [Class Relationships](#class-relationships)
-  - [Component Interactions](#component-interactions)
-
-## Project Summary <a id="project-summary"></a>
-
-# Project Digest: newsapp-manifests
-Generated on: Fri Aug 15 2025 01:19:57 GMT+0300 (Israel Daylight Time)
-Source: c:\Users\Eli\newsapp\newsapp-manifests
-Project Directory: c:\Users\Eli\newsapp\newsapp-manifests
-
-# Directory Structure
-[DIR] .
-  [DIR] .git
-  [DIR] .vscode
-  [DIR] charts
-    [DIR] app
-      [FILE] .helmignore
-      [FILE] Chart.yaml
-      [DIR] templates
-        [FILE] deployment.yaml
-        [FILE] hpa.yaml
-        [FILE] ingress.yaml
-        [FILE] service.yaml
-      [FILE] values.yaml
-    [DIR] newsapp
-      [FILE] Chart.yaml
-      [FILE] values.yaml
-    [DIR] postgresql
-      [FILE] Chart.yaml
-      [DIR] templates
-        [FILE] prepare-storage.yaml
-        [FILE] pv.yaml
-        [FILE] pvc.yaml
-        [FILE] service.yaml
-        [FILE] statefulset.yaml
-      [FILE] values.yaml
-  [DIR] clusters
-    [DIR] dev
-      [DIR] apps
-        [FILE] stack.yaml
-      [FILE] project.yaml
-    [DIR] prod
-      [DIR] apps
-        [FILE] stack.yaml
-      [FILE] project.yaml
-  [DIR] CodeFlattened_Output
-  [FILE] needed_envs
-  [DIR] sealed
-    [DIR] backend
-      [DIR] dev
-      [DIR] prod
-  [DIR] values
-    [DIR] backend
-      [FILE] dev.yaml
-      [FILE] prod.yaml
-    [DIR] frontend
-      [FILE] dev.yaml
-      [FILE] prod.yaml
-    [DIR] postgresql
-      [FILE] dev.yaml
-      [FILE] prod.yaml
-
-# Files Content
-
-## charts\app\.helmignore <a id="helmignore"></a>
-
-.git/
-.github/
-.vscode/
-*.swp
-*.bak
-*.tmp
-
-## charts\app\Chart.yaml <a id="Chart_yaml"></a>
-
-apiVersion: v2
-name: app
-description: Generic deployment chart for simple web apps (backend/frontend)
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
-
-## charts\app\templates\deployment.yaml <a id="deployment_yaml"></a>
-
-### Dependencies
-
-- `{{ .Values.image.repository }}:{{ .Values.image.tag }}`
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  annotations:
-    {{- /* Sync waves: backend=1, frontend=2 */ -}}
-    {{- $wave := "1" -}}
-    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
-    argocd.argoproj.io/sync-wave: "{{ $wave }}"
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: {{ include "app.name" . }}
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: {{ include "app.name" . }}
-    spec:
-      {{- if .Values.imagePullSecrets }}
-      imagePullSecrets:
-{{ toYaml .Values.imagePullSecrets | indent 8 }}
-      {{- end }}
-      {{- if .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-      {{- end }}
-      {{- if .Values.tolerations }}
-      tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
-      {{- end }}
-      {{- if .Values.affinity }}
-      affinity:
-{{ toYaml .Values.affinity | indent 8 }}
-      {{- end }}
-      containers:
-        - name: {{ include "app.name" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - containerPort: {{ .Values.service.port }}
-              name: http
-              {{- if .Values.service.hostPort }}
-              hostPort: {{ .Values.service.hostPort }}
-              {{- end }}
-          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            {{- range $k, $v := .Values.env.plain }}
-            - name: {{ $k }}
-              value: "{{ $v }}"
-            {{- end }}
-          {{- if or .Values.env.secretRef .Values.env.configRef }}
-          envFrom:
-            {{- if .Values.env.configRef }}
-            - configMapRef: { name: {{ .Values.env.configRef }} }
-            {{- end }}
-            {{- if .Values.env.secretRef }}
-            - secretRef: { name: {{ .Values.env.secretRef }} }
-            {{- end }}
-          {{- end }}
-          {{- if .Values.securityContext.addNetBindService }}
-          securityContext:
-            capabilities: { add: ["NET_BIND_SERVICE"] }
-          {{- end }}
-          resources:
-{{ toYaml .Values.resources | indent 12 }}
-
-## charts\newsapp\Chart.yaml <a id="Chart_yaml"></a>
-
-apiVersion: v2
-name: newsapp
-description: Umbrella chart for frontend + backend + postgresql
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
-
-dependencies:
-  - name: app
-    alias: backend
-    repository: "file://../app"
-    version: "0.1.0"
-  - name: app
-    alias: frontend
-    repository: "file://../app"
-    version: "0.1.0"
-  - name: postgresql
-    repository: "file://../postgresql"
-    version: "0.1.0"
-
-## values\backend\dev.yaml <a id="dev_yaml"></a>
-
-app: {name: backend, type: backend}
-fullnameOverride: backend
-image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
-service:
-  type: ClusterIP
-  port: 8080
-env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-secrets
-
-## charts\postgresql\Chart.yaml <a id="Chart_yaml"></a>
-
-image:
-  repository: postgres
-  tag: "16-alpine"
-  pullPolicy: IfNotPresent
-
-postgresql:
-  port: 5432
-  secretName: postgres-credentials  # keys: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
-
-persistence:
-  enabled: true
-  storageClass: ""
-  size: 10Gi
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
-
-service:
-  type: ClusterIP
-  port: 5432
-
-## values\frontend\dev.yaml <a id="dev_yaml"></a>
-
-app: {name: frontend, type: frontend}
-image:
-  repository: elipavlov/newsapp-frontend
-  tag: latest-ee2e95e
-service:
-  type: NodePort
-  port: 80
-  nodePort: 30080
-nodeSelector: {kubernetes.io/hostname: node-1}
-securityContext:
-  addNetBindService: true
-env:
-  plain:
-    VITE_SERVER_URL: "/api"                 # (build-time in CI, here for doc)
-    VITE_NEWS_INTERVAL_IN_MIN: "5"          # (build-time in CI, here for doc)
-    BACKEND_SERVICE_HOST: ""                # filled by CI step
-    BACKEND_SERVICE_PORT: ""                # filled by CI step
-
-## values\postgresql\dev.yaml <a id="dev_yaml"></a>
-
-# values/postgresql/dev.yaml (consumed by charts/newsapp)
-postgresql:
-  image:
-    repository: postgres
-    tag: "16-alpine"
-  postgresql:
-    port: 5432
-    secretName: postgres-credentials
-  persistence:
-    enabled: true
-    size: 5Gi
-    existingClaim: postgresql-pvc-development
-  service:
-    type: ClusterIP
-    port: 5432
-
-## charts\app\templates\hpa.yaml <a id="hpa_yaml"></a>
-
-{{- if .Values.hpa.enabled }}
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: {{ include "app.fullname" . }}
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: {{ include "app.fullname" . }}
-  minReplicas: {{ .Values.hpa.minReplicas }}
-  maxReplicas: {{ .Values.hpa.maxReplicas }}
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
-    {{- if .Values.hpa.targetMemoryUtilizationPercentage }}
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: {{ .Values.hpa.targetMemoryUtilizationPercentage }}
-    {{- end }}
-{{- end }}
-
-## charts\app\templates\ingress.yaml <a id="ingress_yaml"></a>
-
-{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ include "app.fullname" . }}
-  {{- with .Values.ingress.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
-  rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
-      http:
-        paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType | default "Prefix" }}
-            backend:
-              service:
-                name: {{ include "app.fullname" $ }}
-                port:
-                  number: {{ $.Values.service.port }}
-          {{- end }}
-    {{- end }}
-  {{- with .Values.ingress.tls }}
-  tls:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
-
-## needed_envs <a id="needed_envs"></a>
-
-VITE_SERVER_URL= {{VITE_SERVER_URL}}
-VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
-# MONGO | MONGOOSE | POSTGRES | MYSQL
-DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
-# connection string : [protocol]://[username]:[password]@[host]/[database name]
-DB_URI={{DB_URI}}
-## values\backend\prod.yaml <a id="prod_yaml"></a>
-
-app: {name: backend, type: backend}
-fullnameOverride: backend
-image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
-service:
-  type: ClusterIP
-  port: 8080
-env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-secrets
-
-## values\postgresql\prod.yaml <a id="prod_yaml"></a>
-
-nodeSelector:
-  kubernetes.io/hostname: node-3
-
-postgresql:
-  secretName: postgres-credentials
-
-persistence:
-  enabled: true
-  existingClaim: postgresql-pvc-default
-  size: 20Gi
-
-service:
-  type: ClusterIP
-  port: 5432
-
-## values\frontend\prod.yaml <a id="prod_yaml"></a>
-
-app: {name: frontend, type: frontend}
-image:
-  repository: elipavlov/newsapp-frontend
-  tag: latest-ee2e95e
-service:
-  type: ClusterIP
-  port: 80
-nodeSelector: {kubernetes.io/hostname: node-1}
-securityContext:
-  addNetBindService: true
-env:
-  plain:
-    VITE_SERVER_URL: "/api"                 # (build-time in CI, here for doc)
-    VITE_NEWS_INTERVAL_IN_MIN: "5"          # (build-time in CI, here for doc)
-    BACKEND_SERVICE_HOST: ""
-    BACKEND_SERVICE_PORT: ""
-
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
-  hosts:
-    - host: news.example.com
-      paths:
-        - path: /(.*)
-          pathType: Prefix
-  tls:
-    - hosts: ["news.example.com"]
-      secretName: newsapp-tls
-
-## charts\postgresql\templates\prepare-storage.yaml <a id="prepare-storage_yaml"></a>
-
-### Dependencies
-
-- `alpine:3.20`
-
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: postgresql-prepare-storage
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  backoffLimit: 2
-  template:
-    spec:
-      restartPolicy: OnFailure
-{{- if .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-      containers:
-        - name: mkdir
-          image: alpine:3.20
-          command: ["/bin/sh","-c"]
-          args:
-            - |
-              set -e
-              mkdir -p /mnt/data/postgresql-{{ .Release.Namespace }}
-              echo "Ensured /mnt/data/postgresql-{{ .Release.Namespace }}"
-          volumeMounts:
-            - name: host-mnt
-              mountPath: /mnt/data
-      volumes:
-        - name: host-mnt
-          hostPath:
-            path: /mnt/data
-            type: DirectoryOrCreate
-
-## clusters\dev\project.yaml <a id="project_yaml"></a>
-
-﻿apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: newsapp-dev
-  namespace: argocd
-spec:
-  description: Development project for newsapp
-  sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-  destinations:
-    - namespace: development
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
-
-## charts\app\templates\service.yaml <a id="service_yaml"></a>
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  annotations:
-    {{- /* Sync waves: backend=1, frontend=2 */ -}}
-    {{- $wave := "1" -}}
-    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
-    argocd.argoproj.io/sync-wave: "{{ $wave }}"
-spec:
-  type: {{ .Values.service.type }}
-  selector:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  ports:
-    - name: http
-      port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
-      nodePort: {{ .Values.service.nodePort }}
-      {{- end }}
-
-## clusters\prod\project.yaml <a id="project_yaml"></a>
-
-﻿apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  description: Production project for newsapp
-  sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-  destinations:
-    - namespace: default
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
-
-## charts\postgresql\templates\pv.yaml <a id="pv_yaml"></a>
-
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: postgresql-pv-{{ .Release.Namespace }}
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  capacity:
-    storage: {{ .Values.persistence.size | default "10Gi" }}
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-path
-  local:
-    path: /mnt/data/postgresql-{{ .Release.Namespace }}
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                {{- if and .Values.nodeSelector (hasKey .Values.nodeSelector "kubernetes.io/hostname") }}
-                - {{ index .Values.nodeSelector "kubernetes.io/hostname" | quote }}
-                {{- else }}
-                - "node-3"
-                {{- end }}
-
-## charts\postgresql\templates\pvc.yaml <a id="pvc_yaml"></a>
-
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Values.persistence.existingClaim | default (printf "postgresql-pvc-%s" .Release.Namespace) }}
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: {{ .Values.persistence.size | default "10Gi" }}
-  storageClassName: local-path
-  volumeName: postgresql-pv-{{ .Release.Namespace }}
-
-## charts\postgresql\templates\service.yaml <a id="service_yaml"></a>
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgresql
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  type: {{ .Values.service.type }}
-  selector:
-    app.kubernetes.io/name: postgresql
-  ports:
-    - name: postgresql
-      port: {{ .Values.service.port }}
-      targetPort: 5432
-
-## charts\app\values.yaml <a id="values_yaml"></a>
-
-app:
-  name: app
-  type: backend # or "frontend"
-
-image:
-  repository: ""
-  tag: "latest"
-  pullPolicy: IfNotPresent
-
-replicaCount: 1
-
-service:
-  type: ClusterIP   # ClusterIP | NodePort
-  port: 80          # container & service port for the app
-  nodePort: null    # e.g. 30001 for backend
-  hostPort: null    # e.g. 80 for prod FE, 3080 for dev FE
-
-resources: {}
-
-nodeSelector: {}
-tolerations: []
-affinity: []
-
-imagePullSecrets: []
-
-env:
-  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
-  secretRef: ""   # e.g. backend-secrets (DB_URI)
-  configRef: ""
-
-securityContext:
-  addNetBindService: false # needed if binding <1024 like port 80 as non-root
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts: []   # example when enabled:
-  # - host: example.com
-  #   paths:
-  #     - path: /
-  #       pathType: Prefix
-  tls: []
-
-## clusters\prod\apps\stack.yaml <a id="stack_yaml"></a>
-
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  project: newsapp-prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  sources:
-    # 0) SealedSecrets (namespace-scoped to "default")
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: sealed/backend/prod
-      directory:
-        recurse: true
-
-    # 1) Umbrella chart (deploys postgresql + backend + frontend)
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - values/postgresql/prod.yaml
-          - values/backend/prod.yaml
-          - values/frontend/prod.yaml
-
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
-
-## charts\postgresql\templates\statefulset.yaml <a id="statefulset_yaml"></a>
-
-### Dependencies
-
-- `{{ .Values.image.repository }}:{{ .Values.image.tag }}`
-
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgresql
-  labels:
-    app.kubernetes.io/name: postgresql
-spec:
-  serviceName: postgresql
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: postgresql
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: postgresql
-    spec:
-{{- if .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-      containers:
-        - name: postgresql
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
-            - name: POSTGRES_DB
-              valueFrom: { secretKeyRef: { name: {{ .Values.postgresql.secretName | quote }}, key: POSTGRES_DB } }
-            - name: POSTGRES_USER
-              valueFrom: { secretKeyRef: { name: {{ .Values.postgresql.secretName | quote }}, key: POSTGRES_USER } }
-            - name: POSTGRES_PASSWORD
-              valueFrom: { secretKeyRef: { name: {{ .Values.postgresql.secretName | quote }}, key: POSTGRES_PASSWORD } }
-          ports:
-            - containerPort: 5432
-              name: postgresql
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-{{- if .Values.persistence.existingClaim }}
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaim }}
-{{- else }}
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: {{ .Values.persistence.size | default "10Gi" }}
-        storageClassName: local-path
-{{- end }}
-
-## clusters\dev\apps\stack.yaml <a id="stack_yaml"></a>
-
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-dev
-  namespace: argocd
-spec:
-  project: newsapp-dev
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: development
-  sources:
-    # 0) SealedSecrets (namespace-scoped to "development")
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: sealed/backend/dev
-      directory:
-        recurse: true
-
-    # 1) Umbrella chart (deploys postgresql + backend + frontend)
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - values/postgresql/dev.yaml
-          - values/backend/dev.yaml
-          - values/frontend/dev.yaml
-
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
-
-## charts\newsapp\values.yaml <a id="values_yaml"></a>
-
-# Intentionally empty; we pass env-specific value files from Argo CD.
-
-## charts\postgresql\values.yaml <a id="values_yaml"></a>
-
-# charts/postgresql/values.yaml
-image:
-  repository: postgres
-  tag: "16-alpine"
-postgresql:
-  port: 5432
-  secretName: postgres-credentials
-persistence:
-  enabled: true
-  size: 10Gi
-service:
-  type: ClusterIP
-  port: 5432
-## Code Visualization
-
-
-### Architecture and Relationships
-
-These diagrams visualize code relationships at different levels of abstraction.
-
-### File Dependencies
-
-This diagram shows dependencies between individual source files.
-
-#
-
-Below is a visualization of file dependencies in the codebase:
-
-```mermaid
-graph LR
-  F1_c:\Users\Eli\newsapp\newsapp-manifests\charts\app_.helmignore[".helmignore"]
-  F2_c:\Users\Eli\newsapp\newsapp-manifests\charts\app_Chart.yaml["Chart.yaml"]
-  F3_c:\Users\Eli\newsapp\newsapp-manifests\charts\app\templates_deployment.yaml["deployment.yaml"]
-  F4_c:\Users\Eli\newsapp\newsapp-manifests\charts\newsapp_Chart.yaml["Chart.yaml"]
-  F5_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql_Chart.yaml["Chart.yaml"]
-  F6_c:\Users\Eli\newsapp\newsapp-manifests\values\backend_dev.yaml["dev.yaml"]
-  F7_c:\Users\Eli\newsapp\newsapp-manifests\values\frontend_dev.yaml["dev.yaml"]
-  F8_c:\Users\Eli\newsapp\newsapp-manifests\values\postgresql_dev.yaml["dev.yaml"]
-  F9_c:\Users\Eli\newsapp\newsapp-manifests\charts\app\templates_hpa.yaml["hpa.yaml"]
-  F10_c:\Users\Eli\newsapp\newsapp-manifests\charts\app\templates_ingress.yaml["ingress.yaml"]
-  F11_c:\Users\Eli\newsapp\newsapp-manifests_needed_envs["needed_envs"]
-  F12_c:\Users\Eli\newsapp\newsapp-manifests\values\backend_prod.yaml["prod.yaml"]
-  F13_c:\Users\Eli\newsapp\newsapp-manifests\values\postgresql_prod.yaml["prod.yaml"]
-  F14_c:\Users\Eli\newsapp\newsapp-manifests\values\frontend_prod.yaml["prod.yaml"]
-  F15_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql\templates_prepare-storage.yaml["prepare-storage.yaml"]
-  F16_c:\Users\Eli\newsapp\newsapp-manifests\clusters\dev_project.yaml["project.yaml"]
-  F17_c:\Users\Eli\newsapp\newsapp-manifests\clusters\prod_project.yaml["project.yaml"]
-  F18_c:\Users\Eli\newsapp\newsapp-manifests\charts\app\templates_service.yaml["service.yaml"]
-  F19_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql\templates_pv.yaml["pv.yaml"]
-  F20_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql\templates_service.yaml["service.yaml"]
-  F21_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql\templates_pvc.yaml["pvc.yaml"]
-  F22_c:\Users\Eli\newsapp\newsapp-manifests\charts\app_values.yaml["values.yaml"]
-  F23_c:\Users\Eli\newsapp\newsapp-manifests\clusters\prod\apps_stack.yaml["stack.yaml"]
-  F24_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql\templates_statefulset.yaml["statefulset.yaml"]
-  F25_c:\Users\Eli\newsapp\newsapp-manifests\clusters\dev\apps_stack.yaml["stack.yaml"]
-  F26_c:\Users\Eli\newsapp\newsapp-manifests\charts\newsapp_values.yaml["values.yaml"]
-  F27_c:\Users\Eli\newsapp\newsapp-manifests\charts\postgresql_values.yaml["values.yaml"]
-```
-
-### Class Relationships
-
-This diagram shows inheritance and associations between classes.
-
-```mermaid
-classDiagram
-```
-
-
-```mermaid
-graph LR
-A["Main"] --> B["Utils"]
-```
-
-<!-- TEST VISUALIZATION MARKER -->
-
-```mermaid
-graph LR
-A["Main"] --> B["Utils"]
-```
-
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}
 VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
@@ -1457,178 +386,83 @@ DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
 # connection string : [protocol]://[username]:[password]@[host]/[database name]
 DB_URI={{DB_URI}}
 
-// sealed/backend/dev/backend-secrets.sealed.yaml
----
-apiVersion: bitnami.com/v1alpha1
-kind: SealedSecret
-metadata:
-  creationTimestamp: null
-  name: backend-secrets
-  namespace: backend
-spec:
-  encryptedData:
-    DB_URI: AgAPkK3lAFbidCIu22o4PyNOCjfGfF4vip8qqC8rgCgqy3JKJyWQxGqznU8kArZeMFN0t01RAtCvPk8B8lQ1QJAkaN1fdKhK59f6QEaaWaDi8CmpGccJVmSdbBZ6HuFb7x+yAiucPhf7o5Lmr46Pk6MzpBXyJ2QHq5qk2uaFWXuYPM4tcF6Mnez53Bwrl/1Y6MI98+w+iv6fg9qYwt0z8eGaA55Tc+8QMUTo+3PHrWRP+cuAsliz/iJKivYYQgeb1exLRgmZT5Il6pk+UaPcUfPxqMvGHnOLIcTyuKRfekgoOSmfvTUyEqQirXfhL8W1MHRkBkCWsoJ7IdJtdATZMlfsGMsFmPXmV1SUugS6UnBuL01dfCGPPalYd0UuJ1IkrtpcpBdC2oIMrns8kcRov4S6TwjK6yCQAdnBncvadBjpMIlAMRIh5heMVUleDtqqdYe1Nf3vQKmIl2kUUKa3tfK5e8YHxleccxlWGWRZwg935z5edNqPlhTcNMEZRVWv/YF6/3Y4zy8xjTcMwdEIpT/RsvkGi94t2ygidtRjGuDr7q0g550OeZz7tnbrztUsA5q+o+hnfqqQ+GLIg/rc7dFtTtNtryWAsLaw93KhAlze6x06hr7eW7hiWSzAPIIViupLQ2EqR6btYD17fdgRsqASikia1dLzjjaGggXoiugxlTxtbkMYicqQZMfkFfBjtHE59rtSizmeoQvWHlqHqIqPgmaVXGiNO2Sq0x4kqxCZ0pg6O2ugmFSPxhV1e7FW8Pjr+nVD8fXK7DTa2VM83bDDJMdyUacZ1fs4R8vQYmsPh2yJDg==
-  template:
-    metadata:
-      creationTimestamp: null
-      name: backend-secrets
-      namespace: backend
-    type: Opaque
-
-// sealed/backend/dev/mysql-credentials.sealed.yaml
----
-apiVersion: bitnami.com/v1alpha1
-kind: SealedSecret
-metadata:
-  creationTimestamp: null
-  name: mysql-credentials
-  namespace: backend
-spec:
-  encryptedData:
-    MYSQL_DATABASE: AgB801CL2xM2zL7Tz4RG9gpHyfA5DKRP1YXtpKp2SYjgbgM1fAo/pdNad1ZZsv0e4OUjOcpkwAsRrzMcGzUel58BtDsscpckmsl6WtsMaVb2r5iqDAkQnRtC9udVaEpiTFqNfeH5r42YMJU6AemnbB2IVw7COc0XfUVjCJ//Ij47nR9QgP7BaN157jWRmW1N8fpfdgqGZa322vUjr72e8hWmpGelpApE/4VVdF8KzGTynabNaBe3Ot/AWu8xZ1KkALAwzCHZdoEUVkJba7eyiHnbocXw98Jtu4zt3PFmUJtjTBjq3An3ibjWfo4a0KHQwXqSvruZO0EqtXKgL6+1qwzeq7XaUNBPaUdcvDrez6QJU4w3OCZrRJgv5i6lEqzXOXH7zfiydtMiBJgVY80jk85BL060vSzTsn9Rge9hJDCLuR+3y0X1drXFTCr9zex4GEeoRAykiZvW3NinCL4xIYT9UqVbT8QHlCI9/P+GJ2i9VWLPKygPW/Y8844T3ld8xYFFDKsl52JLiwei847fQ3lhiIU2Vjd/VJ1wDeUpdNz+P2TfJ/9b6yNDMXqbxNhX7iDEfi8vmHxls9QrLQ0lwtngtulx4cY9dpUlejCzFxkhzcOJe6Qa6Eq1jxR2PSi9SsSwSdTZPOYnmP0P6m92qqdwQxnPF9EncEPvh4g2HmMobvjQ++vwpfZs4jKHeEdyJG6IfI0ZURrr
-    MYSQL_PASSWORD: AgCloOaSazx2tRTOVv3k0yzj4ECdduHNz2F/1X/4VfGeL7zd0lb1P09ZZavcMfYONWHx014c85s4soLaLuLeNC0ZUO8EeZUf0UGZEiRZ6/cJVO6rxhTlLxH5aXxBEJ2jDTcXVHzsZv3xOasoNKaKNQHlsszaaDN42t6lVAW9d2Lz+I1XIVPD5xw/bcXfbNayPGfJsJTe1dX4KkAnz6ZvJN08PAUNHXVPCbRG8GZxcdZwXVLJLuda+xu1xMGWis2KpGXKVkJ4GLWrbaFfHKsNdgBQX8vLQ+BiX9kUR6bAgsnJqZdxM4wMvO0BC0rEF68riRe8REWlo8wvOeFPnmfY2CqBqHrv85um0GeI+79fiuzaGWhANTZRRUoC7Wz++iM00xh7DOl1Wz7802C3VTlBs/qIXB9F9moZ/8EVckobdeMo2oZyTnjLB4MqUSsf5OuFweQdwdgTqDpx1kFFnVvC+Q5WNCbdJZlpHRjxrzOTm6B88cUGc/70hGZGbL7kNW7KkpUm428opLYDDsIzEkHS5xDmlIMmwXpVQLSGARQ40Stgz/WTaNHFX0a4/O7RcQShc7WxP24YXsyJIDZbUKUQXcjtiMVcANqK26sYDRZmiat3+Qk3gNZcKLVYrwwe26YjxmoXqZ/jXpJ7QyV/x4/lRSxdxZ5JoX4QBkZlykM9R2Lapi1B50JaCqYQm15EzJcL1yGqYKbjICLuewXKk6kin3fwYotSxn84
-    MYSQL_ROOT_PASSWORD: AgBy+cBNZ1EpzSYqT3ANG1SguzfpVo5QvhKwjn/s7Q77lD8HvK8T+k62N+pIC0KibMXP6gWkRokzGWriibUYlcktZW6qrhNgGaUY/xAS4XgImbMdKEXh4sjCB8e4GFZdEBVClJuU/5SpJNfSB7hgFKwudMtdQR8OeumLe0Jpjep7en/XvgytZFdpyn3DDTAJ7DjvcdWGesr4HURW5Ty2Z/KkrW34dqZIacboC7aN/iJOmkROR++4NT8fINNWGsjlMBc3RhErsuwyc7ZV/liB4RsAqhN52af36pJNLSXa20jFZzE8axtEMQr/+0MHR/bCIFdgJb6VcnyJsz7vDEUw1SSaV0pKkeuCOxH/lJN5t52gliOjnlMoqK0VJrXdbH2tJ+1P7bxhFFRUQtZBWknbylplPg7475QYt1g9VSQ9kiNqeZrJOEE1l3SEViWxpVC/uB1cpni11Q1EjWHBbB0yQZYmgmT1hvg7GtxPzmY/B9ntRGner9lWSJ45Vswgf9g4IYEJOexouZZxO7WA9lrK5GMM0880Csc9/+q/m3gjNcvlZNeWgXZQGUUU8wS7iw/82Q3ftGnERMpuoEVYeO4RjyDeRO5dS7Q8Wq6WeNd3XUsHBu6zUgb+wNiEoIETXoFcbPugzzjEAc91t9pYX3du9FwxuL1KExa3rt58ENpbD8il9C3qjbVVkWPgppjy40uw1KfXkffcaYHFROcMYzPAwjK/tvp8A7GtVvF8Yg==
-    MYSQL_USER: AgAfDRdv/e9BDV82vBPEsP5ZwZFEjpCxFUN3WXmFJlEF09cslUexPalU60hhnotvRRT4/JD0uOFExiWZiCl7zGKEPCd94MpMDYYLyPUiHdQzbOTK3dYojbK31S6HW2/ElM5AqOW5qjnhiZHRkTqLhUWKXPQJcxcpcLm3BYAFhWf79C4xLI2aqe1tEdXHQM50ipKIUfcVurnhwmfAYGVyXTJAYwy0ASKy2v50g+Q9sm8NL6X8/gFJHgzrcULPu6AVrhCBNk3N1po4zgDnMG4j3H4kZ52K66g4aRi+QGS5fTeMEvCrWovcMpQPOd2+JUCvylPDYpQ6Zp+GVM3tF01h4eI82/yvf6BHvZUWrz34EcrbXJpXKRrKg9yrKh2gW40ZS8tazmgtLCilIFjT3Ye46LdmTrTeR5m/Ey4vDQoWQHt2i9LjGRHBvq9HP7N1dK5JcvhuD1FEnTND1etcOgid9PLCDrxM8KYIHBUFUjsts3eX+oPlc0+kQ865/81+yrRJlek6Nw5w/AfFM1LBoLQ0DZgeMWJy+hYjMWu9hzbM74nk/eQ+e0t2TURO73PEmk8DVEIryujgwLoDoiHGFO+MbqDT39gInzEH6XYcqGYKcb0l/oHtHUgJGslSvXTR9SBQkwtPfBKEFr1V0CpcmyxK9S5mJ7C1Ts4v2peuz30MaTU3Vorbv4AzYZuCjoICOISbfrzCFKUyKD5L
-  template:
-    metadata:
-      creationTimestamp: null
-      name: mysql-credentials
-      namespace: backend
-    type: Opaque
-
-// sealed/backend/prod/.gitkeep
-# Placeholder so the prod sealed-secrets dir exists.
-# CI writes sealed files here: backend-secrets.sealed.yaml, mysql-credentials.sealed.yaml
-
-// sealed/backend/prod/backend-secrets.sealed.yaml
----
-apiVersion: bitnami.com/v1alpha1
-kind: SealedSecret
-metadata:
-  creationTimestamp: null
-  name: backend-secrets
-  namespace: default
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-spec:
-  encryptedData:
-    DB_URI: AgBhz2Z31ghV6mbVyLCiQX9bll7TvkcxpmPFG/uZBP25NdpzRN8SVYlrahQFO/J642rJ6N2iPfh0/rWP5DSfmIrIqv1mhIivDPZTQasDSvmImJSi+m7RfRSDNZAi0YCBFeWKVhZvMbwhgJ/ygDS1DWtmja5I5e8Kax/oUuhF2wRjQLnnoI+oa62kuk0bftDNsQTyq+1fA9WAsf3KvdSB/ZD1a9Xm1N17Q1xb3UZOoR3cGrwma2hLi793u/lvQQ4jRmgU8lIdhsVL6jILnA583AsuUJ4LFSulzgj/mV5UZn9kjcBfhJs53ol1aoKVDcyVyvRDgTJeveQMTrHqWkyMLVEwOaDRx/nBMK2te2zD7Lm/XRKOKOyPCAxS1q0n3IsCrx0jgNgAOPKOM8EqHL6FMSJbBhQ/ygGZp/i6fgw2dkQCH60E/YFwMED4+INH2YNq4Rc5K3sZ/jY8MPbD+qMAzwTS+PYPQ/96y/1gu7yL4Dul7ysXac7hgzPO6MCl3DdESUn5sGyJrJ39+xZmt5hRAz0RqcrlzS39hbDPKsy1HQU86dViAm8hWtDIGc972HuwSD4rIl57c8gyeWUUrhXpUEULJzXpAn3ZRHQ7EnV/HKToIuPY5KYW+AGkVYcV4re2sglBp1dr6VU8iz1/Hqx9A7d7ifhFO8+505zeQwJ/JzsX2T8DfXnXEcTlX/zCVTEsxjhFeTIOJfS7QF97SN0jcIlPV0WE+MK8UTyGb1geaMacKNsLNBi2X2+Qet4eeBl0+Q8YZch+MdTr8I9XkIUiRds395Bb/0/vXd3cZjn/1jF6A1lC8kY1ih9EorUvWy4=
-  template:
-    metadata:
-      creationTimestamp: null
-      name: backend-secrets
-      namespace: default
-    type: Opaque
-
-// sealed/backend/prod/mysql-credentials.sealed.yaml
----
-apiVersion: bitnami.com/v1alpha1
-kind: SealedSecret
-metadata:
-  creationTimestamp: null
-  name: mysql-credentials
-  namespace: default
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-spec:
-  encryptedData:
-    MYSQL_DATABASE: AgCoJIJAEfsxjLNaFXah9NXuc1cYfFwz7wODmvjSDPN5Uk6CyK6sU+POt5nCq2g4HgUNUsweJ6j/4Cz9i1WjMXjccFIvxS46p29QINGfv0hV60Yt9KFItqGXnWgmumLcYYHKJ9aizF+z+A+HHuCkE8JGt5oar3vWjRe3uAcD9/JjGP1c57nGCvlIhZOv73xVbyf7F79YxtD0L63jf07kYgs0qh20BxwLOv5t75HCQAYSRX1/JypUxOxbW/bM5Qo91ditf2XdjqK8FnbJW1oRchjzvw8KfpD9G0LIbee6MgD5OUQIUv3BQpyCmB2/H27abCQbcYb5GEoyEa3FazCLrrtm+0SsU6BT0J9wRikwlCLKBR9b8wCVHaB8SqW8o5P5s4OZdY+n/ZOcANO4jKKvsMyZD8SK7OXtzLwNGCj/vtjYo8xLp11QC0dkv3ltV5k6ZT+TvX7OjPg/mHVmYvy7G9RKOFST278w+/ifSRRiZlQaefxDHRn93/YJV4YGhtV2k4N7DNhHlurnZWk1jRM+3gsnXpsCGT6j0sK1f28bpBxHltbm+alW+J7aykjWNFjD1OclAkzwTJTD8ywWA7cefkcnU0FtHNj2OnT5YVLV36b086jn0aeT/chxEmTxdgteZKhXZJQApBnY7NJhfHT86qxqAyicL4YmxIww7gEjAtIRwD1o7NlrWjkM6Hxj2jzcU/xrIY1S/H6E
-    MYSQL_PASSWORD: AgCl1KQqOGzQdTezIdeiU13t7ifgIWs3Gvekr9wFB8HSr8xrss6Zcg6ysSh4LF1A1my+eEOp01HBsVtuW1bnQ3+WI16WpSZwg3VWOAVhOJvkTwYR3cVvJaSuUen97Vvh/kCTg/j5asm278GF1BKnIqcc33+en1lHyDaOl1zkjIQ8oGhsB63p20WEQWR+DJ5MwDv4wyKD44Of5Hw+crSDRzKJlAtHE7XbU0rN3w07wPE+XB47CU3SNhajEgbBwePwg4uPqIJHz0qW8BJAkUubQAaWnVWFBVxmhCnkgOX5zfQIh68LcP2UZjPuguOQzsdggDivnhDLIGHkbndii/KB3xwbEgvDeoJrbOFaqQHZpXOAWc3YML1kUCSMR34i0r2nLVC6ZyLnzUENAzw0YU+mh+oorQGUrqTr+Vfbv63EI0Px8MCPhfbZbWd14yxc5OgbZDBVp3ob8LGJ6XvePdxg7H9hQufEFP9OkVhDfANeHrYDke1160WwrO7atqiEaPXCiS0/pj2LIMENAvXYMxll+WrRaJTHAGzKSxLbZLmBYWhHib5zN+gPkC6NOnuwY/h8uCjAwmwq42JGNy07FxnMF8ny6DjuBxZMYiRFTEzXd4knA7wPehev+RCQKmIWWgpnpgY+U/uSsprvFnptY2n/YQEPptu8NxHDbkECTj4IuJHOBI2grkpK7BvcyZYJCwn1lcwPeog6p3qgNSsrDzke/SfnwlM/OUeY
-    MYSQL_ROOT_PASSWORD: AgCHkyNEAiDgcZHURthvL7ANLijhByjasbaGXBm2/to++nVAOsEiQGrypUqVFePJDSz6OZ3X2qLDNHVTZWBbcRyKt1+2C4X+H9jG/3PqQq3fg6oCV4WXRjnkYT0tp/9sxvebBTRPTtsomh066G+kTNYNv82LzwuaYXCcsMEHC9WQ1RYXZd75UgxYgQ5J3QCg4ZCbH4GVyRfg0VkFbNf1pTdYBnJYdExN8gp3Y7UOkhAsHHt6kWm+VtXDa5OmOOvT8zX6Lw1X96cTfn1q+cRbQhJ4QUbubVVr8kiX6yM0djrYqbw2YMzakyLV00HMHukgDLW0sHi8vNupVOUIHk5iptQIoI7oT9UsQcASL8fPA8XVlVbAwsIKoiKWCb39dv9avpWvcyJ/yyht/SwWKdGbIgwqk1wowOebByk7fPhBpzcQWBRkGcVRKoBq0/UYB98ZZYzo0OMNhpjTXgEYDz8hr20kUUL2Aw3jmlcigHkINecGo7YnCvTk3yywwkdTk7fUHhcD7EckehExoWl94fEo+P5MMrkRWrqE9vQXYmoqs8so9dzdxOi0J3Y1mn/uq6JjFaUlpiKGq42GiieL2kkn41vjYmHIpScduu16k+O3bMyYAm/jQ1JgarkjjMD5yyjJb/hwoG3TeYk9OzzIF7KA+biJWOfW1HQ/hqAfeVmH/7yU1C22riPYIVoGVCpJdnbfNoMNu2J8q2U/jb+XVuMmGd0fXloJQZo1w1BAXw==
-    MYSQL_USER: AgChU0lN8oKBCUVAjd+g9SmjKdrJlkuk7dwo8bVDAY7GMOFs42ThGplueITHu293weEXPLNKpn9Hp23WI+wGVDBmkYnPHMgwsI50XYGL4ieQPFyU4qKoW8XyFJV4zS2armsyN0ayBDZbS1/fzA03XOpMasw/Y83S0VauL16N8Npxrac2GmE2DhOLkMKcxB44WPuWygSkHKohrEiKYMwV58iN5/CBj9sYKrIF/j4YHM7JOSEHSpnrxqG0n2ydciebt/QBBWtFeFWygxhcPw//omkbC7rGKFI9VAGNkR3+vYdpVE05cbOJF7rEXGFT7Xq8a7uH82Epw5kzE4fC3nDqUWJP8rmQndQu5f+7iNgaZSdfqnLNKrteLp/c6KwFrDE/baKfZkenlY/ziam7JeyKH7RgpohzJnb6OroTDCVyUoJbhoydAabAr5RTrL5K8Zipp7NsRaCiVos6AkBg9//FrPQ3D+lA6LzuvD9p6qY/8LzVwt73t7gkrRpIDPGHKOzKisEL1WkzLtVDD3ssqVRsbOE3uKoLycsQTdtrSKgkKs8Z/YJUZaSql5Tsgv0uVKN6U7tP7oZgZibsOwftF9ffRdI64lQ+JbwhmMO9KJT3jSKclczHKSbMmqUPRKWOW3FG8whbJHZZoVDPxsS/8WylQ1WRzLadbsfn1zaQzzYy53qFyMFleY4wm0rcp1G+JrMHMj8UUjuyHnBC
-  template:
-    metadata:
-      creationTimestamp: null
-      name: mysql-credentials
-      namespace: default
-    type: Opaque
-
-// sealed/backend/prod/postgres-credentials.sealed.yaml
----
-apiVersion: bitnami.com/v1alpha1
-kind: SealedSecret
-metadata:
-  creationTimestamp: null
-  name: postgres-credentials
-  namespace: default
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-spec:
-  encryptedData:
-    POSTGRES_DB: AgA9YM6omTbJlsk2udZjHgGK9VrY49GoFq9noKTvqg1dO1GQHC9r86jdRJNEzSqTFQhTDfrFzBYke58OKfIxWH/f94VF2IWRxBKsr3oRsqRioj/B9My5r7x9ytapZxK94wuRdC94KJgvfFCiSrRPoVUImyh6kBg3AdOBOV2rRCKYgKtYz4vEdpwoCfDi/cCADAEtVI0AUBPsXRYf30DMCgf4QL8UtHcdE+Miyajbj9ke6MSq/iYPsALTHrlzDqEXVFRyN4m0ixMI8UT+ocsEV9mekahBILwU0s2d67Ly3FFnHP+uVq5bfKmYF4JrCBCd5F74x21IORqciDjzbFKc034/NxF9EhSnTqjZPp2eGK1Tt8XBqYgZpkGyxOUJwmMbHsvzDcC3M+q0BJheOxTP3KlZFnpI6MKhMBchutNcJW3RI5ELrrC1DKSZvGfzWHPdf8e9N1XSI7GnMC/ibmqLJLYtMZEMcxUnNXOKPUp1qjnOK/2lMvgvgzCF3lEoFKJPrVz36jCV5p365jqzjxzV12m1qrEIxFfzRnZVvOda3LqVgB+LX1v7p+xts9zia4/MhZNtzBKYuBGu0cSk/LMaE8QCwqLl1fUTuNfm418WHLsSORrQsKDhIEdQTOJh2He5My+Mj/ESDV7uTSBGqbJR4NqUadIFZyuKq9gXnRKCm2/CzOJMV2oi8oauhRZJwETKT7lLqTh/oUy+
-    POSTGRES_PASSWORD: AgApWbkgCuAyGj2vfoHRJv0qavq1Wu+lI2uBst7fMUDz+89wyxEiCzl41GC8gimE0MI2Y3CtRq15+9G40GIAemz2s8ePouS2esuv1fA8FktQcLjf/SgcF4wSnw96x7glXaF+jwqi0LX2w5UR/MSc3gSMEn1PC6PnQMsDC3tVrCAr02xXOIuh2fNQNdnh8Gqbl3vdxaCiwhMRz7tnbwJX64Py5n1QBYa/cWZXPLXeQXm5GivZua8Q3j1YT03qlcJc+0dYq7TrsDxgo3wJZke90I9uBQ44fq2B2jd/NvV4KfB6xzGlnUOAz4x9qc/MELhkH3TAbwdsNfkTHXykxx9igkch9VVSpjmi5bDzy+FHbDb/L/XUdhBhbHV+plgTixhlEHsPGNCSg0PEdsGQGCSitik1g7zP06nvV3N0ouzqEX1Ylxhn+fWWew5AhAOq9Ej9QB3zLvoQ9z1sDfekvridwP7F9pACqSB4XZrPonFop4pFY2h7jaH9ywgXEiw7j/CoGRFvtXwE/9Hidcvg9uhvUqYMKcbA40ElyRRRD5EQU1XgjUZagF0knzk7jjWXA/XikZn1mgWpmp9BxCF31OBx2K7LO726z3tt5pQ1aJlvDIuGDAO0o9BN/BHMCcKvTtwwyr2CUGq27/r8JmY9jJr73S9YEYezhj0qEqB2E4/JYJCanMbs3CwLgK+ad8CLqCJv3lfJjggNWEyI2tF7WrnGcf/eVDVrOl6j
-    POSTGRES_USER: AgCcYryM2NdbGG6Uw6GbsdzPtnXPAIfQoIoBES/vVJv++LRtFLCKP1oC5nyLSt/X7kYijsfwdsp2Ew3PER1tVGXWIWtJi1yeWfdRunRUTZJOOmGuWt7ZJ/xgKECbYUbO85egROjKOGq3qH4voZmNsgZlEen+TuAmoopL4DEYogMi3pc/Cr+giP32suu6HHOA9fk2BD3t8+yvv3eqzZ3TMRUw9C9Jb39uQstulnErtXKP0uFyRgbc0vQMCvQ1DdGgXZ6vkbMMazbaf76ylAqJg5henTVZSMenCv6LDEQsn2M9ZUiLv1UYui0AkgJNwXUstqRnIjGc1r4xM2TxAVX6asTF90RZdYr6S7S+h0JowK5wFlzmYcTGyp4NHfe92GNMgFkQKqcodQASQ5AnhPvLEupJ33XT9YxdSGRD+yJPhOSLeS/xi9E5rFT7QGEwDR6gAnAxKQCcckHwihadTQ1VeaRmEUoEZXa/sL4UMjw9Cnv0dIERqhJxBho0WO3vn13vb+RjxL2aQZBB9V9Y3qbVydygORcgWobbMv9uyx3sfgADkZg0/1w7hVbPfzkgcfqpc3VxRJDgyQFXGqbWN/npo6tlSVOYvys8KSSk6oWSKPrYI6GOCBWBRm+ab6wjv0Km+3W9nfRYrLtAfIabIrgjQfq5tY7tU1IBHm2xaJqLGWOIcdqrPgTbbA4vC7lfirpc7Gb5jgYFpAYa
-  template:
-    metadata:
-      creationTimestamp: null
-      name: postgres-credentials
-      namespace: default
-    type: Opaque
-
 // values/backend/dev.yaml
 app: { name: backend, type: backend }
 fullnameOverride: backend
+
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
+  tag: dev-local   # CI updates
+
 service:
   type: ClusterIP
   port: 8080
+
 env:
   plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-secrets
+    DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+  secretRef: backend-db-env      # <-- string: matches app chart template
 
 // values/backend/prod.yaml
-app: {name: backend, type: backend}
+app: { name: backend, type: backend }
 fullnameOverride: backend
+
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-66766bc
+  tag: latest-local  # CI updates
+
 service:
   type: ClusterIP
   port: 8080
+
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-secrets
+  secretRef: backend-db-env
 
 // values/frontend/dev.yaml
 app: { name: frontend, type: frontend }
+
 image:
   repository: elipavlov/newsapp-frontend
-  tag: latest-ee2e95e
+  tag: dev-local  # CI updates
+
 service:
   type: NodePort
   port: 80
   nodePort: 30080
-nodeSelector: { kubernetes.io/hostname: node-1 }
-securityContext:
-  addNetBindService: true
-env:
-  plain:
-    VITE_SERVER_URL: "/api"                 # build-time; kept for doc
-    VITE_NEWS_INTERVAL_IN_MIN: "5"          # build-time; kept for doc
-    BACKEND_SERVICE_HOST: ""                # CI fills
-    BACKEND_SERVICE_PORT: ""                # CI fills
 
-// values/frontend/prod.yaml
-app: {name: frontend, type: frontend}
-image:
-  repository: elipavlov/newsapp-frontend
-  tag: latest-ec40111
-service:
-  type: ClusterIP
-  port: 80
-nodeSelector: {kubernetes.io/hostname: node-1}
-securityContext:
-  addNetBindService: true
+nodeSelector: { kubernetes.io/hostname: node-1 }
+securityContext: { addNetBindService: true }
+
 env:
   plain:
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: ""
-    BACKEND_SERVICE_PORT: ""
+    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"
+
+// values/frontend/prod.yaml
+app: { name: frontend, type: frontend }
+
+image:
+  repository: elipavlov/newsapp-frontend
+  tag: latest-local  # CI updates
+
+service:
+  type: ClusterIP
+  port: 80
+
+nodeSelector: { kubernetes.io/hostname: node-1 }
+securityContext: { addNetBindService: true }
+
+env:
+  plain:
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"
+
 ingress:
   enabled: true
   className: nginx
@@ -1640,37 +474,5 @@ ingress:
         - path: /(.*)
           pathType: Prefix
   tls:
-    - hosts: ["news.example.com"]
+    - hosts: ["newsapp.weblightenment.com"]
       secretName: newsapp-tls
-
-// values/postgresql/dev.yaml
-nodeSelector:
-  kubernetes.io/hostname: node-3
-
-postgresql:
-  secretName: postgres-credentials
-
-persistence:
-  enabled: true
-  existingClaim: postgresql-pvc-development
-  size: 5Gi
-
-service:
-  type: ClusterIP
-  port: 5432
-
-// values/postgresql/prod.yaml
-nodeSelector:
-  kubernetes.io/hostname: node-3
-
-postgresql:
-  secretName: postgres-credentials
-
-persistence:
-  enabled: true
-  existingClaim: postgresql-pvc-default
-  size: 20Gi
-
-service:
-  type: ClusterIP
-  port: 5432

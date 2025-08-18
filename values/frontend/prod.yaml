@@ -23,8 +23,9 @@ ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
+    cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
-    - host: news.example.com
+    - host: newsapp.weblightenment.com
       paths:
         - path: /(.*)
           pathType: Prefix
