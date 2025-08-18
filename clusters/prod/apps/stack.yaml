@@ -9,14 +9,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
   sources:
-    # 0) SealedSecrets (namespace-scoped to "default")
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: sealed/backend/prod
-      directory:
-        recurse: true
-
-    # 1) Umbrella chart
+    # Umbrella chart (deploys postgresql + backend + frontend)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
@@ -26,7 +19,6 @@ spec:
           - values/postgresql/prod.yaml
           - values/backend/prod.yaml
           - values/frontend/prod.yaml
-
   syncPolicy:
     automated:
       prune: true
