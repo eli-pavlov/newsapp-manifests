@@ -1,23 +1,18 @@
-app: { name: frontend, type: frontend }
-
+app: {name: frontend, type: frontend}
 image:
   repository: elipavlov/newsapp-frontend
-  tag: latest-local  # CI updates
-
+  tag: latest-ec40111 # CI updates
 service:
   type: ClusterIP
   port: 80
-
-nodeSelector: { kubernetes.io/hostname: node-1 }
-securityContext: { addNetBindService: true }
-
+nodeSelector: {kubernetes.io/hostname: node-1}
+securityContext: {addNetBindService: true}
 env:
   plain:
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
-    BACKEND_SERVICE_PORT: "8080"
-
+    BACKEND_SERVICE_HOST: ""
+    BACKEND_SERVICE_PORT: ""
 ingress:
   enabled: true
   className: nginx
