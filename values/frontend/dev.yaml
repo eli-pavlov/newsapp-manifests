@@ -1,17 +1,17 @@
-app: { name: frontend, type: frontend }
+app:
+  name: frontend
+
 image:
-  repository: elipavlov/newsapp-frontend
-  tag: latest-ee2e95e
+  repository: your-dockerhub/newsapp-frontend
+  tag: dev-local     # CI updates this
+
 service:
-  type: NodePort
+  type: ClusterIP
   port: 80
-  nodePort: 30080
-nodeSelector: { kubernetes.io/hostname: node-1 }
-securityContext:
-  addNetBindService: true
+
 env:
   plain:
-    VITE_SERVER_URL: "/api"                 # build-time; kept for doc
-    VITE_NEWS_INTERVAL_IN_MIN: "5"          # build-time; kept for doc
-    BACKEND_SERVICE_HOST: ""                # CI fills
-    BACKEND_SERVICE_PORT: ""                # CI fills
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"

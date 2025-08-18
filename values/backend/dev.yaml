@@ -1,12 +1,19 @@
-app: { name: backend, type: backend }
-fullnameOverride: backend
+app:
+  name: backend
+
 image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-6b42e0e
+  repository: your-dockerhub/newsapp-backend
+  tag: dev-local    # CI updates this
+
 service:
   type: ClusterIP
   port: 8080
+
 env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-secrets
+  # Pull both DB_ENGINE_TYPE and DB_URI from your Secret
+  secretRef:
+    name: backend-db-env
+
+# If the umbrella chart previously bundled a DB:
+postgresql:
+  enabled: false

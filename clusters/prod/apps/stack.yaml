@@ -9,16 +9,17 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
   sources:
-    # Umbrella chart (deploys postgresql + backend + frontend)
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
       helm:
         releaseName: newsapp
         valueFiles:
-          - values/postgresql/prod.yaml
           - values/backend/prod.yaml
           - values/frontend/prod.yaml
+        parameters:
+          - name: postgresql.enabled
+            value: "false"
   syncPolicy:
     automated:
       prune: true
