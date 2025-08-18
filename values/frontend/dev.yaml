@@ -1,34 +1,35 @@
-app: { name: frontend, type: frontend }
+frontend:
+  app: { name: frontend, type: frontend }
 
-image:
-  repository: elipavlov/newsapp-frontend
-  tag: dev-local  # CI updates
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
 
-service:
-  type: ClusterIP
-  port: 80
+  service:
+    type: ClusterIP
+    port: 80
 
-nodeSelector: { kubernetes.io/hostname: node-1 }
-securityContext: { addNetBindService: true }
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
 
-env:
-  plain:
-    VITE_SERVER_URL: "/api"
-    VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
-    BACKEND_SERVICE_PORT: "8080"
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
 
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
-    cert-manager.io/cluster-issuer: letsencrypt-staging
-  hosts:
-    - host: newsapp-dev.weblightenment.com
-      paths:
-        - path: /(.*)
-          pathType: Prefix
-  tls:
-    - hosts: ["newsapp-dev.weblightenment.com"]
-      secretName: newsapp-dev-tls
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls

@@ -1,15 +1,16 @@
-app: { name: backend, type: backend }
-fullnameOverride: backend
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
 
-image:
-  repository: elipavlov/newsapp-backend
-  tag: dev-local   # CI updates
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
 
-service:
-  type: ClusterIP
-  port: 8080
+  service:
+    type: ClusterIP
+    port: 8080
 
-env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
-  secretRef: backend-db-env      # <-- string: matches app chart template
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
