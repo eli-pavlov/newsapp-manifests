@@ -10,3 +10,7 @@ env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
   secretRef: backend-db-env
+backend:
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc
