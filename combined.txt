@@ -378,6 +378,2673 @@ spec:
     - group: '*'
       kind: '*'
 
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// combined.txt
+// charts/app/.helmignore
+.git/
+.github/
+.vscode/
+*.swp
+*.bak
+*.tmp
+
+// charts/app/Chart.yaml
+apiVersion: v2
+name: app
+description: Generic deployment chart for simple web apps (backend/frontend)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/app/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "app.name" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "app.name" . }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "app.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              {{- if .Values.service.hostPort }}
+              hostPort: {{ .Values.service.hostPort }}
+              {{- end }}
+          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          {{- if .Values.securityContext.addNetBindService }}
+          securityContext:
+            capabilities: { add: ["NET_BIND_SERVICE"] }
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+
+// charts/app/templates/hpa.yaml
+{{- /*
+Defensive HPA template:
+- Works even if `hpa:` block is not present in values.
+- Uses defaults from charts/app/values.yaml, but still guards against nil.
+*/ -}}
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+
+// charts/app/templates/ingress.yaml
+{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" . }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/app/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  annotations:
+    {{- /* Sync waves: backend=1, frontend=2 */ -}}
+    {{- $wave := "1" -}}
+    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
+    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/app/templates/_helpers.tpl
+{{- define "app.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "app.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "app.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+// charts/app/values.yaml
+app:
+  name: app
+  type: backend # or "frontend"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP   # ClusterIP | NodePort
+  port: 80          # container & service port for the app
+  nodePort: null    # e.g. 30080 for frontend NodePort
+  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: []
+
+imagePullSecrets: []
+
+env:
+  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  configRef: ""
+
+securityContext:
+  addNetBindService: false
+
+# >>> Add this block to prevent nil-pointer in the HPA template
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+// charts/newsapp/Chart.yaml
+apiVersion: v2
+name: newsapp
+description: Umbrella chart for frontend + backend (no in-cluster DB)
+type: application
+version: 0.2.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: app
+    alias: backend
+    repository: "file://../app"
+    version: "0.1.0"
+  - name: app
+    alias: frontend
+    repository: "file://../app"
+    version: "0.1.0"
+
+// charts/newsapp/values.schema.json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "backend":  { "type": "object" },
+    "frontend": { "type": "object" }
+  },
+  "additionalProperties": false
+}
+
+// charts/newsapp/values.yaml
+# Intentionally empty; we pass env-specific value files from Argo CD.
+# Values come from env-specific files chosen by Argo CD.
+
+// clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/dev.yaml
+          - values/frontend/dev.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/dev/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - values/backend/prod.yaml
+          - values/frontend/prod.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+
+// clusters/prod/project.yaml
+﻿apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  description: Production project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+  destinations:
+    - namespace: default
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}
 VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
@@ -483,3 +3150,829 @@ ingress:
   tls:
     - hosts: ["newsapp.weblightenment.com"]
       secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls
+
+// needed_envs
+VITE_SERVER_URL= {{VITE_SERVER_URL}}
+VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
+# MONGO | MONGOOSE | POSTGRES | MYSQL
+DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
+# connection string : [protocol]://[username]:[password]@[host]/[database name]
+DB_URI={{DB_URI}}
+
+// values/backend/dev.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: dev-local   # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
+    secretRef: backend-db-env
+
+// values/backend/prod.yaml
+backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    secretRef: backend-db-env
+
+// values/frontend/dev.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: dev-local  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-staging
+    hosts:
+      - host: newsapp-dev.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp-dev.weblightenment.com"]
+        secretName: newsapp-dev-tls
+
+// values/frontend/prod.yaml
+frontend:
+  app: { name: frontend, type: frontend }
+
+  image:
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111  # CI updates
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  nodeSelector: { kubernetes.io/hostname: node-1 }
+  securityContext: { addNetBindService: true }
+
+  env:
+    plain:
+      VITE_SERVER_URL: "/api"
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""   # CI fills
+      BACKEND_SERVICE_PORT: ""   # CI fills
+
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: newsapp.weblightenment.com
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+    tls:
+      - hosts: ["newsapp.weblightenment.com"]
+        secretName: newsapp-tls

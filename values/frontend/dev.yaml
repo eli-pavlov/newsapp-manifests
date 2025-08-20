@@ -7,10 +7,9 @@ frontend:
 
   service:
     type: ClusterIP
-    port: 80
+    port: 8080
 
   nodeSelector: { kubernetes.io/hostname: node-1 }
-  securityContext: { addNetBindService: true }
 
   env:
     plain:

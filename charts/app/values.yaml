@@ -10,10 +10,26 @@ image:
 replicaCount: 1
 
 service:
-  type: ClusterIP   # ClusterIP | NodePort
-  port: 80          # container & service port for the app
-  nodePort: null    # e.g. 30080 for frontend NodePort
-  hostPort: null    # if you bind <1024 as non-root, add NET_BIND_SERVICE
+  type: ClusterIP      # ClusterIP | NodePort
+  port: 8080          # container & service port for the app. Default changed to 8080.
+  nodePort: null      # e.g. 30080 for frontend NodePort
+  hostPort: null
+
+# Pod-level security context. Applied to all containers in the pod.
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 101      # Corresponds to the 'nginx' user in the alpine image
+  runAsGroup: 101     # Corresponds to the 'nginx' group
+  fsGroup: 101        # Ensures mounted volumes are writable by the nginx group
+
+# Container-level security context. Can override pod-level settings.
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
 
 resources: {}
 
@@ -24,12 +40,9 @@ affinity: []
 imagePullSecrets: []
 
 env:
-  plain: {}       # e.g. VITE_* or DB_ENGINE_TYPE
-  secretRef: ""   # e.g. backend-secrets (DB_URI)
+  plain: {}      # e.g. VITE_* or DB_ENGINE_TYPE
+  secretRef: ""  # e.g. backend-secrets (DB_URI)
   configRef: ""
-
-securityContext:
-  addNetBindService: false
 
 # >>> Add this block to prevent nil-pointer in the HPA template
 hpa:

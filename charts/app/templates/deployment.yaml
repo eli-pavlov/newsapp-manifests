@@ -19,26 +19,34 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "app.name" . }}
     spec:
-      {{- if .Values.imagePullSecrets }}
+      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-{{ toYaml .Values.imagePullSecrets | indent 8 }}
+{{ toYaml . | indent 8 }}
       {{- end }}
-      {{- if .Values.nodeSelector }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-{{ toYaml .Values.nodeSelector | indent 8 }}
+{{ toYaml . | indent 8 }}
       {{- end }}
-      {{- if .Values.tolerations }}
+      {{- with .Values.tolerations }}
       tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
+{{ toYaml . | indent 8 }}
       {{- end }}
-      {{- if .Values.affinity }}
+      {{- with .Values.affinity }}
       affinity:
-{{ toYaml .Values.affinity | indent 8 }}
+{{ toYaml . | indent 8 }}
       {{- end }}
       containers:
         - name: {{ include "app.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+{{ toYaml . | indent 12 }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.service.port }}
               name: http
@@ -63,10 +71,6 @@ spec:
             {{- if .Values.env.secretRef }}
             - secretRef: { name: {{ .Values.env.secretRef }} }
             {{- end }}
-          {{- end }}
-          {{- if .Values.securityContext.addNetBindService }}
-          securityContext:
-            capabilities: { add: ["NET_BIND_SERVICE"] }
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
