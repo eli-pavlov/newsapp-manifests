@@ -1,34 +1,29 @@
-frontend:
-  app: { name: frontend, type: frontend }
-
-  image:
-    repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111  # CI updates
-
-  service:
-    type: ClusterIP
-    port: 8080
-
-  nodeSelector: { kubernetes.io/hostname: node-1 }
-
-  env:
-    plain:
-      VITE_SERVER_URL: "/api"
-      VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: ""    # CI fills
-      BACKEND_SERVICE_PORT: ""    # CI fills
-
-  ingress:
-    enabled: true
-    className: nginx
-    annotations:
-      nginx.ingress.kubernetes.io/rewrite-target: /$1
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    hosts:
-      - host: newsapp.weblightenment.com
-        paths:
-          - path: /(.*)
-            pathType: Prefix
-    tls:
-      - hosts: ["newsapp.weblightenment.com"]
-        secretName: newsapp-tls
+app: {name: frontend, type: frontend}
+image:
+  repository: elipavlov/newsapp-frontend
+  tag: latest-ec40111 # CI updates
+service:
+  type: ClusterIP
+  port: 80
+nodeSelector: {kubernetes.io/hostname: node-1}
+securityContext: {addNetBindService: true}
+env:
+  plain:
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: ""
+    BACKEND_SERVICE_PORT: ""
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: newsapp.weblightenment.com
+      paths:
+        - path: /(.*)
+          pathType: Prefix
+  tls:
+    - hosts: ["newsapp.weblightenment.com"]
+      secretName: newsapp-tls
