@@ -543,6 +543,9 @@ spec:
     - group: '*'
       kind: '*'
 
+// combined.txt
+
+
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}
 VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
@@ -587,27 +590,23 @@ db:
     # storageClassName: "local-path"
 
 // values/backend/prod.yaml
-app: {name: backend, type: backend}
-fullnameOverride: backend
-
-image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-66766bc
-
-service:
-  type: ClusterIP
-  port: 8080
-
-env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  # Use the connection string secret created by bootstrap:
-  secretRef: backend-db-connection
-
 backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
   image:
     repository: elipavlov/newsapp-backend
     tag: latest-66766bc
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    # Use the connection string secret created by bootstrap:
+    secretRef: backend-db-connection
 
 # In-cluster DB for prod
 db:

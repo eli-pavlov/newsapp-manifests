@@ -15,8 +15,11 @@ spec:
       helm:
         releaseName: newsapp
         valueFiles:
-          - values/backend/prod.yaml
-          - values/frontend/prod.yaml
+          - $values/values/backend/prod.yaml
+          - $values/values/frontend/prod.yaml
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
   syncPolicy:
     automated:
       prune: true
