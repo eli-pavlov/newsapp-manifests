@@ -13,14 +13,6 @@ spec:
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
-clusterResourceWhitelist:
-  - group: 'apps'
-    kind: 'Deployment'
-  - group: 'apps'
-    kind: 'StatefulSet'
-  - group: ''
-    kind: 'Service'
-  - group: 'networking.k8s.io'
-    kind: 'Ingress'
-  - group: 'autoscaling'
-    kind: 'HorizontalPodAutoscaler'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

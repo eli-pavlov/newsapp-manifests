@@ -10,17 +10,11 @@ spec:
   destinations:
     - namespace: development
       server: https://kubernetes.default.svc
+  # Allow all cluster-scoped kinds (you can tighten this later)
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
-clusterResourceWhitelist:
-  - group: 'apps'
-    kind: 'Deployment'
-  - group: 'apps'
-    kind: 'StatefulSet'
-  - group: ''
-    kind: 'Service'
-  - group: 'networking.k8s.io'
-    kind: 'Ingress'
-  - group: 'autoscaling'
-    kind: 'HorizontalPodAutoscaler'
+  # Allow all namespaced kinds
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

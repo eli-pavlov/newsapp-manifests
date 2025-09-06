@@ -525,9 +525,17 @@ spec:
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+clusterResourceWhitelist:
+  - group: 'apps'
+    kind: 'Deployment'
+  - group: 'apps'
+    kind: 'StatefulSet'
+  - group: ''
+    kind: 'Service'
+  - group: 'networking.k8s.io'
+    kind: 'Ingress'
+  - group: 'autoscaling'
+    kind: 'HorizontalPodAutoscaler'
 
 // clusters/prod/apps/stack.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -577,9 +585,17 @@ spec:
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+clusterResourceWhitelist:
+  - group: 'apps'
+    kind: 'Deployment'
+  - group: 'apps'
+    kind: 'StatefulSet'
+  - group: ''
+    kind: 'Service'
+  - group: 'networking.k8s.io'
+    kind: 'Ingress'
+  - group: 'autoscaling'
+    kind: 'HorizontalPodAutoscaler'
 
 // combined.txt
 
