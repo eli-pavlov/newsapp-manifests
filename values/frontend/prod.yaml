@@ -1,5 +1,5 @@
 frontend:
-  app: {name: frontend, type: frontend}
+  app: {name: frontend, type: frontend, syncWave: "2"}
   image:
     repository: elipavlov/newsapp-frontend
     tag: latest-ec40111 # CI updates

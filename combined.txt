@@ -335,8 +335,13 @@ metadata:
   name: {{ include "postgres.fullname" . }}
   labels:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+  annotations:
+    # Ensure DB comes up before anything that depends on it
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  type: {{ .Values.service.type }}
+  # Headless service for stable network IDs with StatefulSet
+  clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}
   ports:
@@ -348,6 +353,8 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   name: {{ include "postgres.fullname" . }}
   labels:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}
@@ -550,6 +557,9 @@ spec:
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
+
+// combined.txt
+
 
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}

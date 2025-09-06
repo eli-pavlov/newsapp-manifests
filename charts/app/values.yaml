@@ -1,6 +1,7 @@
 app:
   name: app
   type: backend # or "frontend"
+  syncWave: "1"
 
 image:
   repository: ""
@@ -31,7 +32,7 @@ resources: {}
 
 nodeSelector: {}
 tolerations: []
-affinity: {}          # <-- was [] ; must be object
+affinity: {}
 
 imagePullSecrets: []
 
