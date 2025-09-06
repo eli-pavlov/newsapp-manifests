@@ -22,10 +22,7 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ include "app.name" . }}
   annotations:
-    {{- /* Sync waves: backend=1, frontend=2 */ -}}
-    {{- $wave := "1" -}}
-    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
-    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "1" }}"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -171,10 +168,7 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ include "app.name" . }}
   annotations:
-    {{- /* Sync waves: backend=1, frontend=2 */ -}}
-    {{- $wave := "1" -}}
-    {{- if eq .Values.app.type "frontend" }}{{- $wave = "2" }}{{- end }}
-    argocd.argoproj.io/sync-wave: "{{ $wave }}"
+    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "1" }}"
 spec:
   type: {{ .Values.service.type }}
   selector:
@@ -220,6 +214,7 @@ app.kubernetes.io/component: {{ include "app.component" . }}
 app:
   name: app
   type: backend # or "frontend"
+  syncWave: "1"
 
 image:
   repository: ""
@@ -250,7 +245,7 @@ resources: {}
 
 nodeSelector: {}
 tolerations: []
-affinity: {}          # <-- was [] ; must be object
+affinity: {}
 
 imagePullSecrets: []
 
@@ -361,6 +356,9 @@ metadata:
 spec:
   serviceName: {{ include "postgres.fullname" . }}
   replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "postgres.fullname" . }}
@@ -369,6 +367,11 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "postgres.fullname" . }}
     spec:
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.securityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -383,23 +386,43 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.existingSecret.name }}
-                  key:  {{ .Values.existingSecret.userKey }}
+                  key: {{ .Values.existingSecret.userKey }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.existingSecret.name }}
-                  key:  {{ .Values.existingSecret.passwordKey }}
+                  key: {{ .Values.existingSecret.passwordKey }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -h 127.0.0.1 -p 5432"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -h 127.0.0.1 -p 5432"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          startupProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -h 127.0.0.1 -p 5432"]
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-      # If you want a pod-level fsGroup, uncomment and align with your cluster:
-      # securityContext:
-      #   fsGroup: 999
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
-        accessModes: [ "ReadWriteOnce" ]
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: {{ .Values.storage.size | quote }}
@@ -641,7 +664,7 @@ db:
 
 // values/frontend/dev.yaml
 frontend:
-  app: { name: frontend, type: frontend }
+  app: { name: frontend, type: frontend, syncWave: "2" }
 
   image:
     repository: elipavlov/newsapp-frontend
@@ -677,7 +700,7 @@ frontend:
 
 // values/frontend/prod.yaml
 frontend:
-  app: {name: frontend, type: frontend}
+  app: {name: frontend, type: frontend, syncWave: "2"}
   image:
     repository: elipavlov/newsapp-frontend
     tag: latest-ec40111 # CI updates
