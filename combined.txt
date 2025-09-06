@@ -9,7 +9,7 @@ metadata:
 spec:
   acme:
     # TODO: set a real email you control
-    email: you@example.com
+    email: contact@weblightenment.com
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
@@ -27,7 +27,7 @@ metadata:
 spec:
   acme:
     # TODO: set a real email you control
-    email: you@example.com
+    email:  contact@weblightenment.com
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
@@ -106,65 +106,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "-2"
 provisioner: kubernetes.io/no-provisioner
 volumeBindingMode: WaitForFirstConsumer
-
-// addons/local-pv/dev-pv.yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pv-db-dev
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-db-dev
-  persistentVolumeReclaimPolicy: Retain
-  local:
-    path: /mnt/oci/db/postgres
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: role
-          operator: In
-          values: ["database"]
-
-// addons/local-pv/prod-pv.yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: pv-db-prod
-spec:
-  capacity:
-    storage: 20Gi
-  accessModes: ["ReadWriteOnce"]
-  storageClassName: local-db-prod
-  persistentVolumeReclaimPolicy: Retain
-  local:
-    path: /mnt/oci/db/postgres
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: role
-          operator: In
-          values: ["database"]
-
-// addons/local-pv/storageclasses.yaml
-storageclasses.yamlapiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: local-db-dev
-provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
-reclaimPolicy: Retain
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: local-db-prod
-provisioner: kubernetes.io/no-provisioner
-volumeBindingMode: WaitForFirstConsumer
-reclaimPolicy: Retain
 
 // charts/app/.helmignore
 .git/

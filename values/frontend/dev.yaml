@@ -11,6 +11,28 @@ frontend:
 
   nodeSelector: { role: application }
 
+  # Prefer spreading frontend pods across nodes 1 & 2 (role=application)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values: ["frontend"]
+            topologyKey: kubernetes.io/hostname
+
+  # Modest resource envelope
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
   env:
     plain:
       VITE_SERVER_URL: "/api"

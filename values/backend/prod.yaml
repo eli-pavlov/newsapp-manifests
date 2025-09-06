@@ -13,6 +13,28 @@ backend:
   # Run BE only on application workers
   nodeSelector: { role: application }
 
+  # Prefer spreading backend pods across nodes 1 & 2 (role=application)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values: ["backend"]
+            topologyKey: kubernetes.io/hostname
+
+  # Modest resource envelope
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
   env:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
