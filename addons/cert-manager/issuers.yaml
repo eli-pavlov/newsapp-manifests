@@ -8,7 +8,7 @@ metadata:
 spec:
   acme:
     # TODO: set a real email you control
-    email: you@example.com
+    email: contact@weblightenment.com
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-staging-account-key
@@ -26,7 +26,7 @@ metadata:
 spec:
   acme:
     # TODO: set a real email you control
-    email: you@example.com
+    email:  contact@weblightenment.com
     server: https://acme-v02.api.letsencrypt.org/directory
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
