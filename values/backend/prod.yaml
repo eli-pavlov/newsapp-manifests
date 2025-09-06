@@ -1,24 +1,20 @@
-app: {name: backend, type: backend}
-fullnameOverride: backend
-
-image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-66766bc
-
-service:
-  type: ClusterIP
-  port: 8080
-
-env:
-  plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  # Use the connection string secret created by bootstrap:
-  secretRef: backend-db-connection
-
 backend:
+  app: { name: backend, type: backend }
+  fullnameOverride: backend
+
   image:
     repository: elipavlov/newsapp-backend
     tag: latest-66766bc
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  env:
+    plain:
+      DB_ENGINE_TYPE: "POSTGRES"
+    # Use the connection string secret created by bootstrap:
+    secretRef: backend-db-connection
 
 # In-cluster DB for prod
 db:
