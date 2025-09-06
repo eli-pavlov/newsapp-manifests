@@ -323,6 +323,24 @@ type: application
 version: 0.1.0
 appVersion: "16"
 
+// charts/postgres/templates/service-client.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres.fullname" . }}-client
+  labels:
+    app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+  ports:
+    - name: postgres
+      port: {{ .Values.service.port }}
+      targetPort: 5432
+
 // charts/postgres/templates/service.yaml
 apiVersion: v1
 kind: Service
@@ -474,6 +492,10 @@ existingSecret:
 
 # Name of the application database to create
 dbName: appdb
+
+# charts/postgres/values.yaml
+securityContext:
+  fsGroup: 999
 
 // clusters/dev/apps/stack.yaml
 apiVersion: argoproj.io/v1alpha1

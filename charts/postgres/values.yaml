@@ -14,11 +14,17 @@ storage:
   size: 10Gi
   storageClassName: ""    # e.g. "local-path" for K3s; leave empty to use default
 
-resources: {}
+# Container resources (override per env if needed)
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
 
-# Run postgres as the image's default user; if you want fsGroup, uncomment:
-# securityContext:
-#   fsGroup: 999
+# Pod-level security context (helps with volume permissions)
+securityContext:
+  fsGroup: 999
 
 # Use credentials from an existing Secret created by bootstrap:
 existingSecret:
@@ -28,7 +34,3 @@ existingSecret:
 
 # Name of the application database to create
 dbName: appdb
-
-# charts/postgres/values.yaml
-securityContext:
-  fsGroup: 999
