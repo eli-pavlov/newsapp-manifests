@@ -726,38 +726,8 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - ApplyOutOfSyncOnly=true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-dev
-  namespace: argocd
-spec:
-  project: newsapp-dev
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: development
-  sources:
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - $values/values/backend/dev.yaml
-          - $values/values/frontend/dev.yaml
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      ref: values
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -806,8 +776,11 @@ spec:
   description: Development project for newsapp
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git
+    - https://charts.jetstack.io
   destinations:
     - namespace: development
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
       server: https://kubernetes.default.svc
   # Allow all cluster-scoped kinds (you can tighten this later)
   clusterResourceWhitelist:
@@ -845,38 +818,8 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - ApplyOutOfSyncOnly=true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  project: newsapp-prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  sources:
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - $values/values/backend/prod.yaml
-          - $values/values/frontend/prod.yaml
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      ref: values
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -923,8 +866,11 @@ spec:
   description: Production project for newsapp
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git
+    - https://charts.jetstack.io
   destinations:
     - namespace: default
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
