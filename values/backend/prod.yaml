@@ -1,11 +1,14 @@
 app: {name: backend, type: backend}
 fullnameOverride: backend
+
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-66766bc # CI updates
+  tag: latest-66766bc
+
 service:
   type: ClusterIP
   port: 8080
+
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
@@ -17,7 +20,7 @@ backend:
     repository: elipavlov/newsapp-backend
     tag: latest-66766bc
 
-# --- Add the in-cluster DB (prod) ---
+# In-cluster DB for prod
 db:
   enabled: true
   service:

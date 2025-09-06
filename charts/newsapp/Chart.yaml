@@ -1,6 +1,6 @@
 apiVersion: v2
 name: newsapp
-description: Umbrella chart for frontend + backend (no in-cluster DB)
+description: Umbrella chart for frontend + backend (+ optional in-cluster Postgres)
 type: application
 version: 0.2.0
 appVersion: "1.0.0"

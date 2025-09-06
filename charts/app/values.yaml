@@ -10,41 +10,36 @@ image:
 replicaCount: 1
 
 service:
-  type: ClusterIP      # ClusterIP | NodePort
-  port: 8080          # container & service port for the app. Default changed to 8080.
-  nodePort: null      # e.g. 30080 for frontend NodePort
+  type: ClusterIP
+  port: 8080
+  nodePort: null
   hostPort: null
 
-# Pod-level security context. Applied to all containers in the pod.
-# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 101      # Corresponds to the 'nginx' user in the alpine image
-  runAsGroup: 101     # Corresponds to the 'nginx' group
-  fsGroup: 101        # Ensures mounted volumes are writable by the nginx group
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
 
-# Container-level security context. Can override pod-level settings.
-# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
 containerSecurityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-    - ALL
+      - ALL
 
 resources: {}
 
 nodeSelector: {}
 tolerations: []
-affinity: []
+affinity: {}          # <-- was [] ; must be object
 
 imagePullSecrets: []
 
 env:
-  plain: {}      # e.g. VITE_* or DB_ENGINE_TYPE
-  secretRef: ""  # e.g. backend-secrets (DB_URI)
+  plain: {}
+  secretRef: ""
   configRef: ""
 
-# >>> Add this block to prevent nil-pointer in the HPA template
 hpa:
   enabled: false
   minReplicas: 1
