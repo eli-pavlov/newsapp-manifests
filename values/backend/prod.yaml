@@ -9,8 +9,26 @@ service:
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-db-env
+  # Use the connection string secret created by bootstrap:
+  secretRef: backend-db-connection
+
 backend:
   image:
     repository: elipavlov/newsapp-backend
     tag: latest-66766bc
+
+# --- Add the in-cluster DB (prod) ---
+db:
+  enabled: true
+  service:
+    name: postgresql-prod
+    port: 5432
+    type: ClusterIP
+  dbName: newsdb_prod
+  existingSecret:
+    name: postgres-credentials
+    userKey: POSTGRES_USER
+    passwordKey: POSTGRES_PASSWORD
+  storage:
+    size: 20Gi
+    # storageClassName: "local-path"

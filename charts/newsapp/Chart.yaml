@@ -14,3 +14,8 @@ dependencies:
     alias: frontend
     repository: "file://../app"
     version: "0.1.0"
+  - name: postgres
+    alias: db
+    repository: "file://../postgres"
+    version: "0.1.0"
+    condition: db.enabled

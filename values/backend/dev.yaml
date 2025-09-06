@@ -12,5 +12,22 @@ backend:
 
   env:
     plain:
-      DB_ENGINE_TYPE: "POSTGRES"  # optional duplicate (also present in Secret)
-    secretRef: backend-db-env
+      DB_ENGINE_TYPE: "POSTGRES"
+    # Use the connection string secret created by bootstrap:
+    secretRef: backend-db-connection
+
+# --- Add the in-cluster DB (dev) ---
+db:
+  enabled: true
+  service:
+    name: postgresql-dev
+    port: 5432
+    type: ClusterIP
+  dbName: newsdb_dev
+  existingSecret:
+    name: postgres-credentials
+    userKey: POSTGRES_USER
+    passwordKey: POSTGRES_PASSWORD
+  storage:
+    size: 10Gi
+    # storageClassName: "local-path"  # uncomment if you want to pin it

@@ -3,7 +3,8 @@
   "type": "object",
   "properties": {
     "backend":  { "type": "object" },
-    "frontend": { "type": "object" }
+    "frontend": { "type": "object" },
+    "db":       { "type": "object" }
   },
   "additionalProperties": false
 }

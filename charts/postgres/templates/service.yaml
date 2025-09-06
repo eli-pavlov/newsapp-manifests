@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+  ports:
+    - name: postgres
+      port: {{ .Values.service.port }}
+      targetPort: 5432

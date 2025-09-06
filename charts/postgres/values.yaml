@@ -1,0 +1,30 @@
+image:
+  repository: postgres
+  tag: "16-alpine"
+  pullPolicy: IfNotPresent
+
+# Service and naming
+service:
+  name: postgresql        # override per env: postgresql-dev / postgresql-prod
+  port: 5432
+  type: ClusterIP
+
+# Storage (uses cluster default StorageClass when empty)
+storage:
+  size: 10Gi
+  storageClassName: ""    # e.g. "local-path" for K3s; leave empty to use default
+
+resources: {}
+
+# Run postgres as the image's default user; if you want fsGroup, uncomment:
+# securityContext:
+#   fsGroup: 999
+
+# Use credentials from an existing Secret created by bootstrap:
+existingSecret:
+  name: postgres-credentials   # must exist in the namespace
+  userKey: POSTGRES_USER
+  passwordKey: POSTGRES_PASSWORD
+
+# Name of the application database to create
+dbName: appdb
