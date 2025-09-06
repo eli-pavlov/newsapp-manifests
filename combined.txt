@@ -1,3 +1,171 @@
+// addons/cert-manager/issuers.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  annotations:
+    # Ensure these apply after the Helm release (which installs CRDs/controller)
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  acme:
+    # TODO: set a real email you control
+    email: you@example.com
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  acme:
+    # TODO: set a real email you control
+    email: you@example.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+
+// addons/db-local-pv/dev/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: db-pv-dev
+  annotations:
+    # Ensure PV is created before the StatefulSet/PVC
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-db-dev
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    # Prepared by k3s-install-agent on the DB node
+    path: /mnt/oci/db/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: role
+              operator: In
+              values: ["database"]
+
+// addons/db-local-pv/dev/storageclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-db-dev
+  annotations:
+    # Create before PV and app resources
+    argocd.argoproj.io/sync-wave: "-2"
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+
+// addons/db-local-pv/prod/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: db-pv-prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-db-prod
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    path: /mnt/oci/db/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: role
+              operator: In
+              values: ["database"]
+
+// addons/db-local-pv/prod/storageclass.yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-db-prod
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+
+// addons/local-pv/dev-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-db-dev
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-db-dev
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    path: /mnt/oci/db/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: role
+          operator: In
+          values: ["database"]
+
+// addons/local-pv/prod-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-db-prod
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-db-prod
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    path: /mnt/oci/db/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: role
+          operator: In
+          values: ["database"]
+
+// addons/local-pv/storageclasses.yaml
+storageclasses.yamlapiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-db-dev
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-db-prod
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+
 // charts/app/.helmignore
 .git/
 .github/
@@ -402,6 +570,17 @@ spec:
         app.kubernetes.io/name: {{ include "postgres.fullname" . }}
     spec:
       terminationGracePeriodSeconds: 60
+
+      {{- /* NEW: allow pinning to the DB node and tolerating its taint */ -}}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+
       {{- with .Values.securityContext }}
       securityContext:
 {{ toYaml . | indent 8 }}
@@ -515,7 +694,71 @@ existingSecret:
 # Name of the application database to create
 dbName: appdb
 
+nodeSelector: {}
+tolerations: []
+
 // clusters/dev/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  sources:
+    # 1) Install cert-manager via Helm (with CRDs)
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: v1.14.4
+      helm:
+        releaseName: cert-manager
+        valuesObject:
+          installCRDs: true
+    # 2) Apply ClusterIssuers from this repo
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - $values/values/backend/dev.yaml
+          - $values/values/frontend/dev.yaml
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -540,6 +783,10 @@ spec:
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       ref: values
+    # 3) Add-on: pre-create StorageClass + PV for DB on node3
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/db-local-pv/dev
   syncPolicy:
     automated:
       prune: true
@@ -575,6 +822,34 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  sources:
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: v1.14.4
+      helm:
+        releaseName: cert-manager
+        valuesObject:
+          installCRDs: true
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
@@ -594,6 +869,41 @@ spec:
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       ref: values
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: charts/newsapp
+      helm:
+        releaseName: newsapp
+        valueFiles:
+          - $values/values/backend/prod.yaml
+          - $values/values/frontend/prod.yaml
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
+    # Add-on: pre-create StorageClass + PV for DB on node3
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/db-local-pv/prod
   syncPolicy:
     automated:
       prune: true
@@ -647,13 +957,16 @@ backend:
     type: ClusterIP
     port: 8080
 
+  # Run BE only on application workers
+  nodeSelector: { role: application }
+
   env:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
     # Use the connection string secret created by bootstrap:
     secretRef: backend-db-connection
 
-# In-cluster DB for dev
+# In-cluster DB for dev (pinned to DB node, using Local PV backed by OCI block volume)
 db:
   enabled: true
   service:
@@ -661,13 +974,23 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_dev
+
+  # Pin to DB worker and tolerate its taint
+  nodeSelector: { role: database }
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "database"
+      effect: "NoSchedule"
+
   existingSecret:
     name: postgres-credentials
     userKey: POSTGRES_USER
     passwordKey: POSTGRES_PASSWORD
+
   storage:
     size: 10Gi
-    # storageClassName: "local-path"
+    storageClassName: "local-db-dev"
 
 // values/backend/prod.yaml
 backend:
@@ -682,13 +1005,16 @@ backend:
     type: ClusterIP
     port: 8080
 
+  # Run BE only on application workers
+  nodeSelector: { role: application }
+
   env:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
     # Use the connection string secret created by bootstrap:
     secretRef: backend-db-connection
 
-# In-cluster DB for prod
+# In-cluster DB for prod (pinned to DB node, using Local PV backed by OCI block volume)
 db:
   enabled: true
   service:
@@ -696,13 +1022,23 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_prod
+
+  # Pin to DB worker and tolerate its taint
+  nodeSelector: { role: database }
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "database"
+      effect: "NoSchedule"
+
   existingSecret:
     name: postgres-credentials
     userKey: POSTGRES_USER
     passwordKey: POSTGRES_PASSWORD
+
   storage:
     size: 20Gi
-    # storageClassName: "local-path"
+    storageClassName: "local-db-prod"
 
 // values/frontend/dev.yaml
 frontend:
@@ -716,7 +1052,7 @@ frontend:
     type: ClusterIP
     port: 8080
 
-  nodeSelector: { kubernetes.io/hostname: node-1 }
+  nodeSelector: { role: application }
 
   env:
     plain:
@@ -749,7 +1085,7 @@ frontend:
   service:
     type: ClusterIP
     port: 8080
-  nodeSelector: {kubernetes.io/hostname: node-1}
+  nodeSelector: { role: application }
   env:
     plain:
       VITE_SERVER_URL: "/api"

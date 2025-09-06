@@ -26,38 +26,8 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - ApplyOutOfSyncOnly=true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-dev
-  namespace: argocd
-spec:
-  project: newsapp-dev
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: development
-  sources:
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - $values/values/backend/dev.yaml
-          - $values/values/frontend/dev.yaml
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      ref: values
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
