@@ -9,7 +9,7 @@ frontend:
     type: ClusterIP
     port: 8080
 
-  nodeSelector: { kubernetes.io/hostname: node-1 }
+  nodeSelector: { role: application }
 
   env:
     plain:
