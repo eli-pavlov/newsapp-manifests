@@ -323,6 +323,24 @@ type: application
 version: 0.1.0
 appVersion: "16"
 
+// charts/postgres/templates/pdb.yaml
+// charts/postgres/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "postgres.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+  annotations:
+    # Keep PDB in the same early wave as the DB
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  # For a single replica DB, prevent voluntary disruptions
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+
 // charts/postgres/templates/service-client.yaml
 apiVersion: v1
 kind: Service
@@ -478,11 +496,17 @@ storage:
   size: 10Gi
   storageClassName: ""    # e.g. "local-path" for K3s; leave empty to use default
 
-resources: {}
+# Container resources (override per env if needed)
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
 
-# Run postgres as the image's default user; if you want fsGroup, uncomment:
-# securityContext:
-#   fsGroup: 999
+# Pod-level security context (helps with volume permissions)
+securityContext:
+  fsGroup: 999
 
 # Use credentials from an existing Secret created by bootstrap:
 existingSecret:
@@ -492,10 +516,6 @@ existingSecret:
 
 # Name of the application database to create
 dbName: appdb
-
-# charts/postgres/values.yaml
-securityContext:
-  fsGroup: 999
 
 // clusters/dev/apps/stack.yaml
 apiVersion: argoproj.io/v1alpha1
