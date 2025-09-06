@@ -324,7 +324,6 @@ version: 0.1.0
 appVersion: "16"
 
 // charts/postgres/templates/pdb.yaml
-// charts/postgres/templates/pdb.yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -332,10 +331,9 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}
   annotations:
-    # Keep PDB in the same early wave as the DB
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  # For a single replica DB, prevent voluntary disruptions
+  # With a single replica, prevent voluntary disruptions
   minAvailable: 1
   selector:
     matchLabels:
