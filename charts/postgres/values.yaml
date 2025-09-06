@@ -34,3 +34,6 @@ existingSecret:
 
 # Name of the application database to create
 dbName: appdb
+
+nodeSelector: {}
+tolerations: []
