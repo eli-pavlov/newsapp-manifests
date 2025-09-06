@@ -1,6 +1,8 @@
 frontend:
   app: { name: frontend, type: frontend, syncWave: "2" }
 
+  replicaCount: 2
+
   image:
     repository: elipavlov/newsapp-frontend
     tag: dev-local  # CI updates
@@ -11,7 +13,7 @@ frontend:
 
   nodeSelector: { role: application }
 
-  # Prefer spreading frontend pods across nodes 1 & 2 (role=application)
+  # Spread FE pods across node1+2 by component label
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -19,12 +21,12 @@ frontend:
           podAffinityTerm:
             labelSelector:
               matchExpressions:
-                - key: app.kubernetes.io/name
+                - key: app.kubernetes.io/component
                   operator: In
                   values: ["frontend"]
             topologyKey: kubernetes.io/hostname
 
-  # Modest resource envelope
+  # Modest resources
   resources:
     requests:
       cpu: 50m

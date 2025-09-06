@@ -3,18 +3,20 @@ kind: Deployment
 metadata:
   name: {{ include "app.fullname" . }}
   labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
+    {{- /* include name, instance, and component so anti-affinity can target the component */ -}}
+    {{- include "app.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "1" }}"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
+      # Keep the selector anchored on name to avoid cross-release collisions
       app.kubernetes.io/name: {{ include "app.name" . }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ include "app.name" . }}
+        {{- include "app.labels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

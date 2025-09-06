@@ -2,6 +2,8 @@ backend:
   app: { name: backend, type: backend }
   fullnameOverride: backend
 
+  replicaCount: 2
+
   image:
     repository: elipavlov/newsapp-backend
     tag: latest-66766bc
@@ -13,7 +15,7 @@ backend:
   # Run BE only on application workers
   nodeSelector: { role: application }
 
-  # Prefer spreading backend pods across nodes 1 & 2 (role=application)
+  # Spread BE pods across node1+2 by component label
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -21,12 +23,12 @@ backend:
           podAffinityTerm:
             labelSelector:
               matchExpressions:
-                - key: app.kubernetes.io/name
+                - key: app.kubernetes.io/component
                   operator: In
                   values: ["backend"]
             topologyKey: kubernetes.io/hostname
 
-  # Modest resource envelope
+  # Modest resources
   resources:
     requests:
       cpu: 100m
@@ -38,7 +40,6 @@ backend:
   env:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
-    # Use the connection string secret created by bootstrap:
     secretRef: backend-db-connection
 
 # In-cluster DB for prod (pinned to DB node, using Local PV backed by OCI block volume)
