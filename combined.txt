@@ -457,14 +457,19 @@ spec:
     server: https://kubernetes.default.svc
     namespace: development
   sources:
+    # 1) The chart
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
       helm:
         releaseName: newsapp
         valueFiles:
-          - values/backend/dev.yaml
-          - values/frontend/dev.yaml
+          - $values/values/backend/dev.yaml
+          - $values/values/frontend/dev.yaml
+    # 2) A "values" ref pointing at repo root so we can load files outside chart path
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
   syncPolicy:
     automated:
       prune: true
@@ -512,8 +517,11 @@ spec:
       helm:
         releaseName: newsapp
         valueFiles:
-          - values/backend/prod.yaml
-          - values/frontend/prod.yaml
+          - $values/values/backend/prod.yaml
+          - $values/values/frontend/prod.yaml
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
   syncPolicy:
     automated:
       prune: true
@@ -542,9 +550,6 @@ spec:
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
-
-// combined.txt
-
 
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}

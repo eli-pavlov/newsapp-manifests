@@ -1,6 +1,8 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   name: {{ include "postgres.fullname" . }}
   labels:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}

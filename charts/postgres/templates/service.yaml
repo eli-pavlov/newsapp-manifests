@@ -4,8 +4,13 @@ metadata:
   name: {{ include "postgres.fullname" . }}
   labels:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+  annotations:
+    # Ensure DB comes up before anything that depends on it
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  type: {{ .Values.service.type }}
+  # Headless service for stable network IDs with StatefulSet
+  clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: {{ include "postgres.fullname" . }}
   ports:
