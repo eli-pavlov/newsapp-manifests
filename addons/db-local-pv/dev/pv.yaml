@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: db-pv-dev
+  annotations:
+    # Ensure PV is created before the StatefulSet/PVC
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-db-dev
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    # Prepared by k3s-install-agent on the DB node
+    path: /mnt/oci/db/postgres
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: role
+              operator: In
+              values: ["database"]
