@@ -3,7 +3,7 @@ frontend:
   replicaCount: 2
   image:
     repository: elipavlov/newsapp-frontend
-    tag: latest-590e2a9
+    tag: latest-ec40111
   service:
     type: ClusterIP
     port: 8080
