@@ -26,7 +26,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-addons
+  name: argocd-ingress # <-- CORRECTED FROM argocd-addons
   namespace: argocd
 spec:
   project: newsapp-prod
