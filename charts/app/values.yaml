@@ -28,7 +28,13 @@ containerSecurityContext:
     drop:
       - ALL
 
-resources: {}
+# Default resources so HPA (if enabled) has CPU requests to target.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
 
 nodeSelector: {}
 tolerations: []
@@ -52,6 +58,8 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
+  # NEW: easiest TLS wiring—set this to "letsencrypt-staging" or "letsencrypt-prod"
+  certManagerClusterIssuer: ""
   hosts: []
   tls: []
 

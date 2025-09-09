@@ -119,36 +119,6 @@ spec:
         - protocol: TCP
           port: 8080
 
-{{- if and $beeg.enabled }}
----
-# (Opt-in) BE -> public internet on 80/443; exclude RFC1918/Carrier-Grade NAT.
-# DB/cluster internal access remains covered by other policies.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: be-egress-web
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: backend
-  policyTypes: ["Egress"]
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            {{- if $beeg.exceptCidrs }}
-            except:
-            {{- range $cidr := $beeg.exceptCidrs }}
-              - {{ $cidr | quote }}
-            {{- end }}
-            {{- end }}
-      ports:
-      {{- range $p := ($beeg.ports | default (list 80 443)) }}
-        - protocol: TCP
-          port: {{ $p }}
-      {{- end }}
-{{- end }}
-
 {{- if .Values.db.enabled }}
 ---
 # BE -> DB egress on 5432
@@ -192,9 +162,40 @@ spec:
           port: {{ .Values.db.service.port | default 5432 }}
 {{- end }}
 
+{{- if and $beeg.enabled }}
+---
+# (Opt-in) BE -> public internet on 80/443; exclude RFC1918/Carrier-Grade NAT.
+# DB/cluster internal access remains covered by other policies.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: be-egress-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            {{- if $beeg.exceptCidrs }}
+            except:
+            {{- range $cidr := $beeg.exceptCidrs }}
+              - {{ $cidr | quote }}
+            {{- end }}
+            {{- end }}
+      ports:
+      {{- range $p := ($beeg.ports | default (list 80 443)) }}
+        - protocol: TCP
+          port: {{ $p }}
+      {{- end }}
+{{- end }}
+
 {{- end }}
 
 ---
+# Always allow nginx to reach ACME solver pods on 8089 for HTTP01
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
