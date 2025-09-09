@@ -44,8 +44,7 @@ frontend:
     enabled: true
     className: nginx
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    certManagerClusterIssuer: letsencrypt-staging
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
     hosts:
       - host: newsapp-dev.weblightenment.com
         paths:
@@ -53,4 +52,4 @@ frontend:
             pathType: Prefix
     tls:
       - hosts: ["newsapp-dev.weblightenment.com"]
-        secretName: newsapp-dev-tls
+        secretName: newsapp-dev-selfsigned-tls
