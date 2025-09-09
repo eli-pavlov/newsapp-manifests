@@ -11,8 +11,8 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      # Keep the selector anchored on name to avoid cross-release collisions
       app.kubernetes.io/name: {{ include "app.name" . }}
+      app.kubernetes.io/component: {{ include "app.component" . }}
   template:
     metadata:
       labels:

@@ -51,8 +51,8 @@ frontend:
     hosts:
       - host: newsapp.weblightenment.com
         paths:
-          - path: /(.*)
-            pathType: Prefix
+          - path: /
+            pathType: Prefixx
     tls:
       - hosts: ["newsapp.weblightenment.com"]
         secretName: newsapp-tls
