@@ -6,6 +6,7 @@ frontend:
   image:
     repository: elipavlov/newsapp-frontend
     tag: latest-ec40111
+
   service:
     type: ClusterIP
     port: 8080
@@ -42,8 +43,8 @@ frontend:
   ingress:
     enabled: true
     className: nginx
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # <-- NEW: have cert-manager issue a self-signed cert automatically
+    certManagerClusterIssuer: selfsigned
     hosts:
       - host: newsapp.weblightenment.com
         paths:

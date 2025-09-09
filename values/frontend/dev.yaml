@@ -43,8 +43,8 @@ frontend:
   ingress:
     enabled: true
     className: nginx
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # <-- NEW: have cert-manager issue a self-signed cert automatically
+    certManagerClusterIssuer: selfsigned
     hosts:
       - host: newsapp-dev.weblightenment.com
         paths:
