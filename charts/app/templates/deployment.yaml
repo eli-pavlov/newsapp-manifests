@@ -52,7 +52,6 @@ spec:
               {{- if .Values.service.hostPort }}
               hostPort: {{ .Values.service.hostPort }}
               {{- end }}
-          # Always pass the pod's namespace (used by FE nginx entrypoint for backend DNS)
           env:
             - name: POD_NAMESPACE
               valueFrom:
