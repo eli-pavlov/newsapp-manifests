@@ -20,12 +20,8 @@ spec:
       targetRevision: main
       path: addons/cert-manager
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -49,15 +45,27 @@ spec:
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       ref: values
-    # Add-on: pre-create StorageClass + PV for DB on node3
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/db-local-pv/prod
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true ]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ ApplyOutOfSyncOnly=true ]

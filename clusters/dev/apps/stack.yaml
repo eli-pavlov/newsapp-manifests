@@ -9,7 +9,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cert-manager
   sources:
-    # 1) Install cert-manager via Helm (with CRDs)
     - repoURL: https://charts.jetstack.io
       chart: cert-manager
       targetRevision: v1.14.4
@@ -17,17 +16,12 @@ spec:
         releaseName: cert-manager
         valuesObject:
           installCRDs: true
-    # 2) Apply ClusterIssuers from this repo
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/cert-manager
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -40,7 +34,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: development
   sources:
-    # 1) The chart
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
@@ -49,19 +42,30 @@ spec:
         valueFiles:
           - $values/values/backend/dev.yaml
           - $values/values/frontend/dev.yaml
-    # 2) A "values" ref pointing at repo root so we can load files outside chart path
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       ref: values
-    # 3) Add-on: pre-create StorageClass + PV for DB on node3
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/db-local-pv/dev
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true ]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ ApplyOutOfSyncOnly=true ]
