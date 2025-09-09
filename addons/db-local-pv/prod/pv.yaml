@@ -12,7 +12,7 @@ spec:
   storageClassName: local-db-prod
   persistentVolumeReclaimPolicy: Retain
   local:
-    path: /mnt/oci/db/postgres
+    path: /mnt/oci/db/prod
   nodeAffinity:
     required:
       nodeSelectorTerms:
