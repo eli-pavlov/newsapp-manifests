@@ -67,3 +67,8 @@ db:
   storage:
     size: 10Gi
     storageClassName: "local-db-dev"
+
+# Opt-in: allow backend to reach internet (80/443) while keeping cluster ranges excluded
+networkPolicy:
+  backendEgressWeb:
+    enabled: true

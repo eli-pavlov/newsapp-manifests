@@ -8,7 +8,22 @@
     "networkPolicy": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean" }
+        "enabled": { "type": "boolean" },
+        "backendEgressWeb": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "exceptCidrs": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "ports": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 1, "maximum": 65535 }
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": true
     }

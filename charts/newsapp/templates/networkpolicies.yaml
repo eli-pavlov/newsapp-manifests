@@ -6,10 +6,13 @@ Minimal lock-down:
 - Allow frontend -> backend :8080
 - Allow backend -> postgres :5432
 - Allow postgres <- backend :5432
+- Optional: Allow backend -> public internet :80/:443 (opt-in via values)
 
 NOTE: Effective only with a NetworkPolicy-aware CNI (e.g., Cilium/Calico).
 */ -}}
-{{- if .Values.networkPolicy.enabled }}
+{{- $np := .Values.networkPolicy | default dict -}}
+{{- $beeg := $np.backendEgressWeb | default dict -}}
+{{- if $np.enabled }}
 
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -115,6 +118,36 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
+
+{{- if and $beeg.enabled }}
+---
+# (Opt-in) BE -> public internet on 80/443; exclude RFC1918/Carrier-Grade NAT.
+# DB/cluster internal access remains covered by other policies.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: be-egress-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            {{- if $beeg.exceptCidrs }}
+            except:
+            {{- range $cidr := $beeg.exceptCidrs }}
+              - {{ $cidr | quote }}
+            {{- end }}
+            {{- end }}
+      ports:
+      {{- range $p := ($beeg.ports | default (list 80 443)) }}
+        - protocol: TCP
+          port: {{ $p }}
+      {{- end }}
+{{- end }}
 
 {{- if .Values.db.enabled }}
 ---

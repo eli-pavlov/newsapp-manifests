@@ -2,3 +2,14 @@
 
 networkPolicy:
   enabled: true
+
+  # Opt-in: allow backend to egress to the public internet on these ports.
+  backendEgressWeb:
+    enabled: false
+    # RFC1918 + RFC6598 (adjust if your cluster uses different ranges)
+    exceptCidrs:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      - 100.64.0.0/10
+    ports: [80, 443]
