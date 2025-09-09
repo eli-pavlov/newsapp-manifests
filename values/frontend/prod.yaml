@@ -1,18 +1,13 @@
 frontend:
-  app: { name: frontend, type: frontend, syncWave: "2" }
-
+  app: {name: frontend, type: frontend, syncWave: "2"}
   replicaCount: 2
-
   image:
     repository: elipavlov/newsapp-frontend
     tag: latest-ec40111 # CI updates
-
   service:
     type: ClusterIP
     port: 8080
-
-  nodeSelector: { role: application }
-
+  nodeSelector: {role: application}
   # Spread FE pods across node1+2 by component label
   affinity:
     podAntiAffinity:
@@ -25,7 +20,6 @@ frontend:
                   operator: In
                   values: ["frontend"]
             topologyKey: kubernetes.io/hostname
-
   # Modest resources
   resources:
     requests:
@@ -34,14 +28,12 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
-
   env:
     plain:
       VITE_SERVER_URL: "/api"
       VITE_NEWS_INTERVAL_IN_MIN: "5"
       BACKEND_SERVICE_HOST: "" # CI fills
       BACKEND_SERVICE_PORT: "" # CI fills
-
   ingress:
     enabled: true
     className: nginx
