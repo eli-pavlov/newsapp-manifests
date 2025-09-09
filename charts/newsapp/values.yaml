@@ -1,2 +1,4 @@
-# Intentionally empty; we pass env-specific value files from Argo CD.
-# Values come from env-specific files chosen by Argo CD.
+# Intentionally minimal; subchart values come from Argo CD value files.
+
+networkPolicy:
+  enabled: true
