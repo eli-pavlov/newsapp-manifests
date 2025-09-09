@@ -58,7 +58,7 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
-  # NEW: easiest TLS wiring—set this to "letsencrypt-staging" or "letsencrypt-prod"
+  # Easiest TLS wiring—set to "letsencrypt-staging" or "letsencrypt-prod"
   certManagerClusterIssuer: ""
   hosts: []
   tls: []
