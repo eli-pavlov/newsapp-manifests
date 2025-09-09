@@ -5,8 +5,7 @@ frontend:
 
   image:
     repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111
-
+    tag: latest-a288f59
   service:
     type: ClusterIP
     port: 8080
