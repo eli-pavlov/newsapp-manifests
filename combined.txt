@@ -640,6 +640,29 @@ dbName: appdb
 nodeSelector: {}
 tolerations: []
 
+// clusters/dev/apps/project.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: newsapp-dev
+  namespace: argocd
+spec:
+  description: Development project for newsapp
+  sourceRepos:
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+    - https://charts.jetstack.io
+  destinations:
+    - namespace: development
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
 // clusters/dev/apps/stack.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -709,19 +732,19 @@ spec:
       - ApplyOutOfSyncOnly=true
       - RespectIgnoreDifferences=true
 
-// clusters/dev/project.yaml
-﻿apiVersion: argoproj.io/v1alpha1
+// clusters/prod/apps/project.yaml
+apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: newsapp-dev
+  name: newsapp-prod
   namespace: argocd
 spec:
-  description: Development project for newsapp
+  description: Production project for newsapp
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git
     - https://charts.jetstack.io
   destinations:
-    - namespace: development
+    - namespace: default
       server: https://kubernetes.default.svc
     - namespace: cert-manager
       server: https://kubernetes.default.svc
@@ -796,29 +819,6 @@ spec:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
       - RespectIgnoreDifferences=true
-
-// clusters/prod/project.yaml
-﻿apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  description: Production project for newsapp
-  sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-    - https://charts.jetstack.io
-  destinations:
-    - namespace: default
-      server: https://kubernetes.default.svc
-    - namespace: cert-manager
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
-  namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
 
 // combined.txt
 

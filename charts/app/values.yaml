@@ -54,3 +54,27 @@ ingress:
   annotations: {}
   hosts: []
   tls: []
+
+probes:
+  readiness:
+    type: tcp        # "tcp" or "http"
+    # path: /healthz # only used when type=http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 3
+
+  liveness:
+    type: tcp
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 6
+
+  startup:
+    enabled: true
+    type: tcp
+    periodSeconds: 5
+    failureThreshold: 30

@@ -72,3 +72,56 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+
+          {{- with .Values.probes }}
+          {{- if .readiness }}
+          readinessProbe:
+            {{- if eq (.readiness.type | default "tcp") "http" }}
+            httpGet:
+              path: {{ .readiness.path | default "/" | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .readiness.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.Values.service.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .readiness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .readiness.failureThreshold | default 3 }}
+          {{- end }}
+
+          {{- if .liveness }}
+          livenessProbe:
+            {{- if eq (.liveness.type | default "tcp") "http" }}
+            httpGet:
+              path: {{ .liveness.path | default "/" | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .liveness.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.Values.service.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .liveness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .liveness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .liveness.successThreshold | default 1 }}
+            failureThreshold: {{ .liveness.failureThreshold | default 6 }}
+          {{- end }}
+
+          {{- if and .startup .startup.enabled }}
+          startupProbe:
+            {{- if eq (.startup.type | default "tcp") "http" }}
+            httpGet:
+              path: {{ .startup.path | default "/" | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .startup.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.Values.service.port }}
+            {{- end }}
+            periodSeconds: {{ .startup.periodSeconds | default 5 }}
+            failureThreshold: {{ .startup.failureThreshold | default 30 }}
+          {{- end }}
+          {{- end }}
