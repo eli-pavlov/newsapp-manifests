@@ -43,8 +43,7 @@ frontend:
   ingress:
     enabled: true
     className: nginx
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-staging
+    certManagerClusterIssuer: letsencrypt-staging
     hosts:
       - host: newsapp-dev.weblightenment.com
         paths:
