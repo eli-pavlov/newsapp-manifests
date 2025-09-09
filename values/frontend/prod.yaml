@@ -35,6 +35,8 @@ frontend:
   ingress:
     enabled: true
     className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
     certManagerClusterIssuer: letsencrypt-prod
     hosts:
       - host: newsapp.weblightenment.com

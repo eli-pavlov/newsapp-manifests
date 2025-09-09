@@ -1,3 +1,46 @@
+// addons/argocd/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    # Restrict by admin CIDRs only:
+    # REPLACE with your actual admin CIDRs CSV (e.g., "203.0.113.4/32,198.51.100.0/24")
+    nginx.ingress.kubernetes.io/whitelist-source-range: "REPLACE_WITH_ADMIN_CIDRS_CSV"
+    # Use prod issuer; switch to staging while testing if needed
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.weblightenment.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443
+    - host: argocd-dev.weblightenment.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443
+  tls:
+    - hosts: ["argocd.weblightenment.com"]
+      secretName: argocd-prod-tls
+    - hosts: ["argocd-dev.weblightenment.com"]
+      secretName: argocd-dev-tls
+
 // addons/cert-manager/issuers.yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -493,15 +536,7 @@ dependencies:
 // charts/newsapp/templates/networkpolicies.yaml
 {{- /*
 Minimal lock-down:
-- Default deny (ingress+egress) for all pods in this namespace
-- Allow DNS egress to CoreDNS
-- Allow ingress-nginx -> frontend :8080
-- Allow frontend -> backend :8080
-- Allow backend -> postgres :5432
-- Allow postgres <- backend :5432
-- Optional: Allow backend -> public internet :80/:443 (opt-in via values)
-
-NOTE: Effective only with a NetworkPolicy-aware CNI (e.g., Cilium/Calico).
+... (comment unchanged)
 */ -}}
 {{- $np := .Values.networkPolicy | default dict -}}
 {{- $beeg := $np.backendEgressWeb | default dict -}}
@@ -512,7 +547,6 @@ kind: NetworkPolicy
 metadata:
   name: default-deny-all
   annotations:
-    # Apply early but after namespace creation
     argocd.argoproj.io/sync-wave: "1"
 spec:
   podSelector: {}
@@ -628,7 +662,6 @@ spec:
     - to:
         - podSelector:
             matchLabels:
-              # postgres chart labels pods with app.kubernetes.io/name: <service.name or chart name>
               app.kubernetes.io/name: {{ .Values.db.service.name | default "postgresql" | quote }}
       ports:
         - protocol: TCP
@@ -657,8 +690,6 @@ spec:
 
 {{- if and $beeg.enabled }}
 ---
-# (Opt-in) BE -> public internet on 80/443; exclude RFC1918/Carrier-Grade NAT.
-# DB/cluster internal access remains covered by other policies.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -685,10 +716,8 @@ spec:
       {{- end }}
 {{- end }}
 
-{{- end }}
-
 ---
-# Always allow nginx to reach ACME solver pods on 8089 for HTTP01
+# Allow ACME solver pods to be reached by ingress-nginx for HTTP01
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -706,6 +735,8 @@ spec:
       ports:
         - protocol: TCP
           port: 8089
+
+{{- end }}
 
 // charts/newsapp/values.schema.json
 {
@@ -996,6 +1027,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: cert-manager
       server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
@@ -1015,7 +1048,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cert-manager
   sources:
-    # 1) Install cert-manager via Helm (with CRDs)
     - repoURL: https://charts.jetstack.io
       chart: cert-manager
       targetRevision: v1.14.4
@@ -1023,17 +1055,12 @@ spec:
         releaseName: cert-manager
         valuesObject:
           installCRDs: true
-    # 2) Apply ClusterIssuers from this repo
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/cert-manager
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1046,7 +1073,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: development
   sources:
-    # 1) The chart
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
@@ -1055,22 +1081,33 @@ spec:
         valueFiles:
           - $values/values/backend/dev.yaml
           - $values/values/frontend/dev.yaml
-    # 2) A "values" ref pointing at repo root so we can load files outside chart path
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       ref: values
-    # 3) Add-on: pre-create StorageClass + PV for DB on node3
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/db-local-pv/dev
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true ]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ ApplyOutOfSyncOnly=true ]
 
 // clusters/prod/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1087,6 +1124,8 @@ spec:
     - namespace: default
       server: https://kubernetes.default.svc
     - namespace: cert-manager
+      server: https://kubernetes.default.svc
+    - namespace: argocd
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
@@ -1118,12 +1157,8 @@ spec:
       targetRevision: main
       path: addons/cert-manager
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1147,18 +1182,30 @@ spec:
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       ref: values
-    # Add-on: pre-create StorageClass + PV for DB on node3
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/db-local-pv/prod
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true ]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  sources:
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ ApplyOutOfSyncOnly=true ]
 
 // combined.txt
 
@@ -1366,19 +1413,14 @@ frontend:
 // values/frontend/prod.yaml
 frontend:
   app: {name: frontend, type: frontend, syncWave: "2"}
-
   replicaCount: 2
-
   image:
     repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111
-
+    tag: latest-a288f59
   service:
     type: ClusterIP
     port: 8080
-
   nodeSelector: {role: application}
-
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -1390,7 +1432,6 @@ frontend:
                   operator: In
                   values: ["frontend"]
             topologyKey: kubernetes.io/hostname
-
   resources:
     requests:
       cpu: 50m
@@ -1398,14 +1439,12 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
-
   env:
     plain:
       VITE_SERVER_URL: "/api"
       VITE_NEWS_INTERVAL_IN_MIN: "5"
       BACKEND_SERVICE_HOST: "" # CI fills
       BACKEND_SERVICE_PORT: "" # CI fills
-
   ingress:
     enabled: true
     className: nginx
