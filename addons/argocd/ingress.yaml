@@ -8,7 +8,7 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 
     # Allow only your admin CIDRs (adjust!)
-    nginx.ingress.kubernetes.io/whitelist-source-range: 203.0.113.0/24, 198.51.100.10/32
+    nginx.ingress.kubernetes.io/whitelist-source-range: 87.68.164.0/24, 198.51.100.10/32
 
     # <-- NEW: let ingress-shim auto-create/renew the secret via the selfsigned ClusterIssuer
     cert-manager.io/cluster-issuer: selfsigned
