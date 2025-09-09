@@ -1,18 +1,13 @@
 frontend:
   app: {name: frontend, type: frontend, syncWave: "2"}
-
   replicaCount: 2
-
   image:
     repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111
-
+    tag: latest-1287c1f
   service:
     type: ClusterIP
     port: 8080
-
   nodeSelector: {role: application}
-
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -24,7 +19,6 @@ frontend:
                   operator: In
                   values: ["frontend"]
             topologyKey: kubernetes.io/hostname
-
   resources:
     requests:
       cpu: 50m
@@ -32,14 +26,12 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
-
   env:
     plain:
       VITE_SERVER_URL: "/api"
       VITE_NEWS_INTERVAL_IN_MIN: "5"
       BACKEND_SERVICE_HOST: "" # CI fills
       BACKEND_SERVICE_PORT: "" # CI fills
-
   ingress:
     enabled: true
     className: nginx
