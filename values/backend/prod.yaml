@@ -56,3 +56,7 @@ db:
   storage:
     size: 20Gi
     storageClassName: "local-db-prod"
+
+pathIngress:
+  enabled: true
+  path: /app

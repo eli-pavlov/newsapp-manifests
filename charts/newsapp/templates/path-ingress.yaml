@@ -1,0 +1,30 @@
+{{- /*
+Creates a path-based Ingress for the frontend, accessible via the LB IP.
+This is separate from the main host-based ingress.
+*/ -}}
+{{- if .Values.frontend.pathIngress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" .Subcharts.frontend }}-path
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: selfsigned
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: {{ include "app.fullname" .Subcharts.frontend }}-path-selfsigned-tls
+  rules:
+    - http:
+        paths:
+          - path: {{ .Values.frontend.pathIngress.path }}(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                # This assumes a predictable service name for the frontend
+                name: {{ .Values.frontend.fullnameOverride | default (printf "%s-%s" .Release.Name .Values.frontend.name) }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+{{- end }}

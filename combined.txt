@@ -8,8 +8,6 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # Restrict who can reach Argo CD (adjust these!)
-    nginx.ingress.kubernetes.io/whitelist-source-range: 87.68.164.0/24,198.51.100.10/32
-    # Have cert-manager mint/renew the certificate
     cert-manager.io/cluster-issuer: selfsigned
 spec:
   ingressClassName: nginx
