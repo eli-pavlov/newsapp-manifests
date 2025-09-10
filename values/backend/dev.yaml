@@ -72,7 +72,3 @@ db:
 networkPolicy:
   backendEgressWeb:
     enabled: true
-
-pathIngress:
-  enabled: true
-  path: /dev

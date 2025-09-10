@@ -26,6 +26,35 @@ spec:
                 name: argocd-server
                 port:
                   number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-path
+  namespace: argocd
+  annotations:
+    # This annotation is crucial: it strips the /argocd prefix before
+    # forwarding the request, so the argocd-server receives a request for "/"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: selfsigned
+spec:
+  ingressClassName: nginx
+  tls:
+    # A self-signed cert will be created for IP-based access
+    - secretName: argocd-path-selfsigned-tls
+  rules:
+    # Note: There is no "host" field here, so this rule applies to any
+    # hostname, including the load balancer's direct IP address.
+    - http:
+        paths:
+          - path: /argocd(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
 
 // addons/cert-manager/issuers.yaml
 apiVersion: cert-manager.io/v1
@@ -729,6 +758,38 @@ spec:
 
 {{- end }}
 
+// charts/newsapp/templates/path-ingress.yaml
+{{- /*
+Creates a path-based Ingress for the frontend, accessible via the LB IP.
+This is separate from the main host-based ingress.
+*/ -}}
+{{- if .Values.frontend.pathIngress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "app.fullname" .Subcharts.frontend }}-path
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: selfsigned
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: {{ include "app.fullname" .Subcharts.frontend }}-path-selfsigned-tls
+  rules:
+    - http:
+        paths:
+          - path: {{ .Values.frontend.pathIngress.path }}(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                # This assumes a predictable service name for the frontend
+                name: {{ .Values.frontend.fullnameOverride | default (printf "%s-%s" .Release.Name .Values.frontend.name) }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+{{- end }}
+
 // charts/newsapp/values.schema.json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1288,6 +1349,10 @@ networkPolicy:
   backendEgressWeb:
     enabled: true
 
+pathIngress:
+  enabled: true
+  path: /dev
+
 // values/backend/prod.yaml
 backend:
   app: {name: backend, type: backend}
@@ -1347,6 +1412,10 @@ db:
   storage:
     size: 20Gi
     storageClassName: "local-db-prod"
+
+pathIngress:
+  enabled: true
+  path: /app
 
 // values/frontend/dev.yaml
 frontend:

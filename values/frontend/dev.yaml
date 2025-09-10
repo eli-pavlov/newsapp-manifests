@@ -53,3 +53,7 @@ frontend:
     tls:
       - hosts: ["newsapp-dev.weblightenment.com"]
         secretName: newsapp-dev-selfsigned-tls
+        
+pathIngress:
+  enabled: true
+  path: /dev
