@@ -32,14 +32,13 @@ spec:
 
       terminationGracePeriodSeconds: 60
 
-      {{- /* NEW: allow pinning to the DB node (via nodeAffinity above) and tolerating its taint.
-           NOTE: nodeAffinity is used explicitly above to require nodes with label role=database.
-           Keep per-env tolerations available via values files. */ -}}
+      {{- /* Allow per-environment tolerations to be injected from values (keeps ability to tolerate DB node taints) */ -}}
       {{- with .Values.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
       {{- end }}
 
+      {{- /* Pod-level securityContext injected from chart values (e.g. fsGroup) */ -}}
       {{- with .Values.securityContext }}
       securityContext:
 {{ toYaml . | indent 8 }}
