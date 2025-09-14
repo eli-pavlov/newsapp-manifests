@@ -1,4 +1,5 @@
 // addons/cert-manager/issuers.yaml
+# addons/cert-manager/issuers.yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -7,7 +8,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   acme:
-    # production: https://acme-v02.api.letsencrypt.org/directory
+    # production Let's Encrypt
     server: https://acme-v02.api.letsencrypt.org/directory
     email: contact@weblightenment.com
     privateKeySecretRef:
@@ -15,33 +16,57 @@ spec:
     solvers:
       - dns01:
           cloudflare:
-            # cert-manager will read the API token from the secret below
+            apiTokenSecretRef:
+              name: cloudflare-api-token-secret
+              key: api-token
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  acme:
+    # staging endpoint — use this for dev/testing to avoid production rate limits
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: contact@weblightenment.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - dns01:
+          cloudflare:
             apiTokenSecretRef:
               name: cloudflare-api-token-secret
               key: api-token
 
-// addons/cert-manager-chart.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+// addons/cert-manager/networkpolicy-certmanager-tls-egress.yaml
+# addons/cert-manager/networkpolicy-certmanager-tls-egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata:
-  name: cert-manager-chart
-  namespace: argocd
+  name: allow-certmgr-tls-egress
+  namespace: cert-manager
 spec:
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: cert-manager
-  source:
-    repoURL: https://charts.jetstack.io
-    chart: cert-manager
-    targetRevision: v1.14.4
-    helm:
-      values: |
-        installCRDs: true
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
----
+  podSelector: {} # all cert-manager pods
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: UDP
+          port: 53
+
+// addons/cert-manager-chart.yaml
+# addons/cert-manager-chart.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -56,6 +81,32 @@ spec:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main
     path: addons/cert-manager
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
+
+// addons/cert-manager.yaml
+# clusters/addons/cert-manager.yaml
+# This is now the single source of truth for the cert-manager Helm release.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  # Assign it to the default project, as it's a cluster-wide utility
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  sources:
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: v1.14.4
+      helm:
+        releaseName: cert-manager
+        valuesObject:
+          installCRDs: true
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
@@ -154,7 +205,7 @@ metadata:
     {{- /* include name, instance, and component so anti-affinity can target the component */ -}}
     {{- include "app.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "1" }}"
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -311,42 +362,26 @@ spec:
 {{- end }}
 
 // charts/app/templates/ingress.yaml
-{{- if and (hasKey .Values "ingress") (.Values.ingress.enabled) }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: v1
+kind: Service
 metadata:
   name: {{ include "app.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "app.name" . }}
   annotations:
-    {{- if .Values.ingress.annotations }}
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
-    {{- end }}
-    {{- if .Values.ingress.certManagerClusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.certManagerClusterIssuer | quote }}
-    {{- end }}
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
 spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
-  rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
-      http:
-        paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType | default "Prefix" }}
-            backend:
-              service:
-                name: {{ include "app.fullname" $ }}
-                port:
-                  number: {{ $.Values.service.port }}
-          {{- end }}
-    {{- end }}
-  {{- with .Values.ingress.tls }}
-  tls:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "app.name" . }}
+    app.kubernetes.io/component: {{ include "app.component" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
 
 // charts/app/templates/service.yaml
 apiVersion: v1
@@ -496,6 +531,7 @@ description: Umbrella chart for frontend + backend (+ optional in-cluster Postgr
 type: application
 version: 0.2.0
 appVersion: "1.0.0"
+
 
 dependencies:
   - name: app
@@ -750,7 +786,9 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: selfsigned
+    {{- if .Values.frontend.ingress.certManagerClusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.frontend.ingress.certManagerClusterIssuer | quote }}
+    {{- end }}
 spec:
   ingressClassName: nginx
   tls:
@@ -1383,7 +1421,7 @@ frontend:
     enabled: true
     className: nginx
     # <-- NEW: have cert-manager issue a self-signed cert automatically
-    certManagerClusterIssuer: letsencrypt-dns01-cloudflare
+    certManagerClusterIssuer: letsencrypt-staging
     hosts:
       - host: newsapp-dev.weblightenment.com
         paths:
