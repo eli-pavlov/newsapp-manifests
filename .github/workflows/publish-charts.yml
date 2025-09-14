@@ -16,6 +16,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     env:
       OUT_DIR: out
     steps:
