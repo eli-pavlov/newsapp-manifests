@@ -4,7 +4,7 @@ kind: ClusterIssuer
 metadata:
   name: letsencrypt-dns01-cloudflare
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
@@ -64,26 +64,6 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-
-// addons/cert-manager-chart.yaml
-# addons/cert-manager-chart.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: cert-manager-issuer
-  namespace: argocd
-spec:
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: cert-manager
-  source:
-    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-    targetRevision: main
-    path: addons/cert-manager
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 
 // addons/cert-manager.yaml
 # clusters/addons/cert-manager.yaml
@@ -1049,7 +1029,29 @@ spec:
       selfHeal: true
 
 // clusters/dev/apps/db-pv.yaml
-
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-db-pv-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: addons/db-local-pv/dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
 
 // clusters/dev/apps/frontend-app.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1202,7 +1204,7 @@ metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
-  description: "Environment project for newsapp (dev)"
+  description: "Environment project for newsapp"
   sourceRepos:
     - 'https://github.com/eli-pavlov/newsapp-manifests.git'
     - 'https://charts.jetstack.io'   #letting ArgoCD fetch cert-manager from helm
@@ -1252,40 +1254,53 @@ DB_ENGINE_TYPE={{DB_ENGINE_TYPE}}
 DB_URI={{DB_URI}}
 
 // values/backend/dev.yaml
-backend:
-  app: { name: backend, type: backend }
-  fullnameOverride: backend
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-backend
-    tag: dev-local
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: { role: application }
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["backend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  env:
-    plain:
-      DB_ENGINE_TYPE: "POSTGRES"
-    secretRef: backend-db-connection
+app:
+  name: backend
+  syncWave: "1"
+fullnameOverride: backend
+replicaCount: 2
 
+image:
+  repository: elipavlov/newsapp-backend
+  tag: dev-local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["backend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  plain:
+    DB_ENGINE_TYPE: "POSTGRES"
+  secretRef: backend-db-connection
+
+hpa:
+  enabled: false
+
+# db block is not used by charts/backend templates, but keep it if you reference it elsewhere
 db:
   enabled: true
   service:
@@ -1368,52 +1383,66 @@ db:
     storageClassName: "local-db-prod"
 
 // values/frontend/dev.yaml
-frontend:
-  app: { name: frontend, type: frontend, syncWave: "2" }
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-frontend
-    tag: dev-local
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: { role: application }
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["frontend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi
-  env:
-    plain:
-      VITE_SERVER_URL: "/api"
-      VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
-      BACKEND_SERVICE_PORT: "8080"
-  ingress:
-    enabled: true
-    className: nginx
-    certManagerClusterIssuer: letsencrypt-staging
-    hosts:
-      - host: newsapp-dev.weblightenment.com
-        paths:
-          - path: /
-            pathType: Prefix
-    tls:
-      - hosts: ["newsapp-dev.weblightenment.com"]
-        secretName: newsapp-dev-selfsigned-tls
+app:
+  name: frontend
+  syncWave: "2"
+
+replicaCount: 2
+
+image:
+  repository: elipavlov/newsapp-frontend
+  tag: dev-local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["frontend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+env:
+  plain:
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"
+
+ingress:
+  enabled: true
+  className: nginx
+  certManagerClusterIssuer: letsencrypt-staging
+  hosts:
+    - host: newsapp-dev.weblightenment.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts: ["newsapp-dev.weblightenment.com"]
+      secretName: newsapp-dev-selfsigned-tls
+
+hpa:
+  enabled: false
 
 // values/frontend/prod.yaml
 frontend:

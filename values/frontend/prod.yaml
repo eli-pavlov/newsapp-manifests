@@ -1,46 +1,61 @@
-frontend:
-  app: {name: frontend, type: frontend, syncWave: "2"}
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: {role: application}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["frontend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi
-  env:
-    plain:
-      VITE_SERVER_URL: "/api"
-      VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
-      BACKEND_SERVICE_PORT: "8080"
-  ingress:
-    enabled: true
-    className: nginx
-    certManagerClusterIssuer: letsencrypt-dns01-cloudflare
-    hosts:
-      - host: newsapp.weblightenment.com
-        paths:
-          - path: /
-            pathType: Prefix
-    tls:
-      - hosts: ["newsapp.weblightenment.com"]
-        secretName: newsapp-selfsigned-tls
+# values/frontend/prod.yaml (top-level keys expected by charts/frontend)
+app:
+  name: frontend
+  syncWave: "2"
+
+replicaCount: 2
+
+image:
+  repository: elipavlov/newsapp-frontend
+  tag: latest-ec40111
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["frontend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+env:
+  plain:
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"
+
+ingress:
+  enabled: true
+  className: nginx
+  certManagerClusterIssuer: letsencrypt-dns01-cloudflare
+  hosts:
+    - host: newsapp.weblightenment.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts: ["newsapp.weblightenment.com"]
+      secretName: newsapp-selfsigned-tls
+
+hpa:
+  enabled: false

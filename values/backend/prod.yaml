@@ -1,36 +1,49 @@
-backend:
-  app: {name: backend, type: backend}
-  fullnameOverride: backend
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-backend
-    tag: latest-66766bc
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: {role: application}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["backend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  env:
-    plain:
-      DB_ENGINE_TYPE: "POSTGRES"
-    secretRef: backend-db-connection
+# values/backend/prod.yaml (top-level keys expected by charts/backend)
+app:
+  name: backend
+  syncWave: "1"
+fullnameOverride: backend
+replicaCount: 2
+
+image:
+  repository: elipavlov/newsapp-backend
+  tag: latest-66766bc
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["backend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  plain:
+    DB_ENGINE_TYPE: "POSTGRES"
+  secretRef: backend-db-connection
+
+hpa:
+  enabled: false
 
 db:
   enabled: true
@@ -39,7 +52,7 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_prod
-  nodeSelector: {role: database}
+  nodeSelector: { role: database }
   tolerations:
     - key: "role"
       operator: "Equal"
@@ -52,3 +65,7 @@ db:
   storage:
     size: 20Gi
     storageClassName: "local-db-prod"
+
+networkPolicy:
+  backendEgressWeb:
+    enabled: true
