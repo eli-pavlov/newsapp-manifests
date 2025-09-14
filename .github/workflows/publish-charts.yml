@@ -1,0 +1,167 @@
+name: Publish Helm charts to gh-pages
+
+on:
+  push:
+    paths:
+      - 'charts/**'
+    branches:
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      OUT_DIR: out
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          chmod 700 get_helm.sh
+          ./get_helm.sh
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Determine owner/repo & published URL
+        id: repoinfo
+        run: |
+          echo "owner=$(echo $GITHUB_REPOSITORY | cut -d/ -f1)" >> $GITHUB_OUTPUT
+          echo "repo=$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_OUTPUT
+          echo "url=https://${GITHUB_REPOSITORY_OWNER}.github.io/$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_OUTPUT
+
+      - name: Prepare output directory
+        run: |
+          rm -rf $OUT_DIR
+          mkdir -p $OUT_DIR
+
+      - name: Package changed charts
+        id: package
+        run: |
+          set -euo pipefail
+          SHORT=${GITHUB_SHA:0:7}
+          PACKED_LIST=""
+
+          # fetch main to compare (ensure we have history)
+          git fetch --no-tags --prune --depth=1 origin main || true
+
+          # Detect changed chart directories under charts/
+          mapfile -t changed_files < <(git diff --name-only origin/main...HEAD || true)
+          declare -A changed_dirs=()
+          for f in "${changed_files[@]}"; do
+            if [[ "$f" == charts/* ]]; then
+              dir=$(echo "$f" | awk -F/ '{print $1"/"$2}')
+              changed_dirs["$dir"]=1
+            fi
+          done
+
+          # If none found, fallback to your explicit list (optional)
+          if [ "${#changed_dirs[@]}" -eq 0 ]; then
+            echo "No changed charts detected vs origin/main; using default list"
+            CHARTS_TO_PUBLISH=(charts/app charts/postgres)
+          else
+            CHARTS_TO_PUBLISH=()
+            for d in "${!changed_dirs[@]}"; do CHARTS_TO_PUBLISH+=("$d"); done
+          fi
+
+          for CH in "${CHARTS_TO_PUBLISH[@]}"; do
+            if [ -d "${CH}" ]; then
+              base=$(basename "${CH}")
+              version=$(yq -r '.version' "${CH}/Chart.yaml")
+              newver="${version}-dev.${SHORT}"
+              echo "Packaging ${CH} -> version ${newver}"
+              helm package "${CH}" -d $OUT_DIR --version "${newver}"
+              PACKED_LIST="${PACKED_LIST}${OUT_DIR}/${base}-${newver}.tgz "
+            else
+              echo "Skipping ${CH}: not present"
+            fi
+          done
+
+          if [ -z "${PACKED_LIST}" ]; then
+            echo "::warning::No charts packaged (no chart dirs found)"
+            echo "packed=false" >> "$GITHUB_OUTPUT"
+            echo "packed_list=" >> "$GITHUB_OUTPUT"
+          else
+            packed_list_trimmed="$(echo ${PACKED_LIST})"
+            echo "packed=true" >> "$GITHUB_OUTPUT"
+            echo "packed_list=${packed_list_trimmed}" >> "$GITHUB_OUTPUT"
+          fi
+
+
+
+      - name: Create/update Helm repo index (merge with existing)
+        if: steps.package.outputs.packed == 'true'
+        run: |
+          set -euo pipefail
+          INDEX_URL="${{ steps.repoinfo.outputs.url }}"
+          # try to fetch existing index.yaml from gh-pages (ignore errors)
+          mkdir -p $OUT_DIR
+          curl -fsS "${INDEX_URL}/index.yaml" -o "${OUT_DIR}/existing-index.yaml" || true
+
+          # if existing index exists, merge; otherwise create new index
+          if [ -s "${OUT_DIR}/existing-index.yaml" ]; then
+            echo "Merging with existing index.yaml"
+            helm repo index $OUT_DIR --url "${INDEX_URL}" --merge "${OUT_DIR}/existing-index.yaml"
+          else
+            echo "No existing index found; creating new index"
+            helm repo index $OUT_DIR --url "${INDEX_URL}"
+          fi
+
+
+      - name: Update umbrella Chart.yaml dependency versions (optional)
+        if: steps.package.outputs.packed == 'true'
+        run: |
+          set -euo pipefail
+          cd $GITHUB_WORKSPACE
+
+          # iterate filenames from packed_list
+          IFS=' ' read -r -a files <<< "${{ steps.package.outputs.packed_list }}"
+
+          for tgz in "${files[@]}"; do
+            if [ -z "$tgz" ] || [ ! -f "$tgz" ]; then
+              echo "Skipping missing file: $tgz"
+              continue
+            fi
+            fn=$(basename "$tgz")
+            # filename is name-version.tgz; extract name & version (handles hyphens in name)
+            name=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\1/')
+            version=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\2/')
+            echo "Setting dependency ${name} -> version ${version}"
+            yq -i --arg n "$name" --arg v "$version" '
+              (.dependencies[] | select(.name == $n) .version) = $v
+            ' charts/newsapp/Chart.yaml
+          done
+
+          # Commit the bump back to repo (consider opening a PR instead of pushing to main)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/newsapp/Chart.yaml
+          if git diff --cached --quiet; then
+            echo "No dependency version changes to commit"
+          else
+            git commit -m "ci(charts): bump dependency versions to packaged artifacts"
+            # WARNING: pushing to main will re-trigger workflow on push — consider creating a branch & a PR instead.
+            git push origin HEAD:main
+          fi
+
+
+      - name: Publish to gh-pages (push out/ to gh-pages)
+        if: steps.package.outputs.packed == 'true'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
+          # optional: publish branch can be changed; default is gh-pages
+          # publish_branch: gh-pages
