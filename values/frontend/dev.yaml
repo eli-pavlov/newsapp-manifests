@@ -44,7 +44,7 @@ frontend:
     enabled: true
     className: nginx
     # <-- NEW: have cert-manager issue a self-signed cert automatically
-    certManagerClusterIssuer: selfsigned
+    certManagerClusterIssuer: letsencrypt-dns01-cloudflare
     hosts:
       - host: newsapp-dev.weblightenment.com
         paths:
