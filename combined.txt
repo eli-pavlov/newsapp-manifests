@@ -23,7 +23,7 @@ kind: ClusterIssuer
 metadata:
   name: letsencrypt-staging
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
@@ -1078,6 +1078,31 @@ spec:
       prune: true
       selfHeal: true
 
+// clusters/dev/apps/postgres-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-postgres-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: newsapp-dev
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: charts/postgres
+    helm:
+      valueFiles:
+        - ../../values/postgres/dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
 // clusters/dev/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -1189,6 +1214,31 @@ spec:
     helm:
       valueFiles:
         - ../../values/frontend/prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+// clusters/prod/apps/postgres.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-postgres-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: newsapp-prod
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: charts/postgres
+    helm:
+      valueFiles:
+        - ../../values/postgres/prod.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: default
@@ -1327,39 +1377,52 @@ networkPolicy:
     enabled: true
 
 // values/backend/prod.yaml
-backend:
-  app: {name: backend, type: backend}
-  fullnameOverride: backend
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-backend
-    tag: latest-66766bc
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: {role: application}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["backend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  env:
-    plain:
-      DB_ENGINE_TYPE: "POSTGRES"
-    secretRef: backend-db-connection
+# values/backend/prod.yaml (top-level keys expected by charts/backend)
+app:
+  name: backend
+  syncWave: "1"
+fullnameOverride: backend
+replicaCount: 2
+
+image:
+  repository: elipavlov/newsapp-backend
+  tag: latest-66766bc
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["backend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  plain:
+    DB_ENGINE_TYPE: "POSTGRES"
+  secretRef: backend-db-connection
+
+hpa:
+  enabled: false
 
 db:
   enabled: true
@@ -1368,7 +1431,7 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_prod
-  nodeSelector: {role: database}
+  nodeSelector: { role: database }
   tolerations:
     - key: "role"
       operator: "Equal"
@@ -1381,6 +1444,10 @@ db:
   storage:
     size: 20Gi
     storageClassName: "local-db-prod"
+
+networkPolicy:
+  backendEgressWeb:
+    enabled: true
 
 // values/frontend/dev.yaml
 app:
@@ -1445,49 +1512,132 @@ hpa:
   enabled: false
 
 // values/frontend/prod.yaml
-frontend:
-  app: {name: frontend, type: frontend, syncWave: "2"}
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: {role: application}
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["frontend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi
-  env:
-    plain:
-      VITE_SERVER_URL: "/api"
-      VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
-      BACKEND_SERVICE_PORT: "8080"
-  ingress:
-    enabled: true
-    className: nginx
-    certManagerClusterIssuer: letsencrypt-dns01-cloudflare
-    hosts:
-      - host: newsapp.weblightenment.com
-        paths:
-          - path: /
-            pathType: Prefix
-    tls:
-      - hosts: ["newsapp.weblightenment.com"]
-        secretName: newsapp-selfsigned-tls
+# values/frontend/prod.yaml (top-level keys expected by charts/frontend)
+app:
+  name: frontend
+  syncWave: "2"
+
+replicaCount: 2
+
+image:
+  repository: elipavlov/newsapp-frontend
+  tag: latest-ec40111
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["frontend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+env:
+  plain:
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"
+
+ingress:
+  enabled: true
+  className: nginx
+  certManagerClusterIssuer: letsencrypt-dns01-cloudflare
+  hosts:
+    - host: newsapp.weblightenment.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts: ["newsapp.weblightenment.com"]
+      secretName: newsapp-selfsigned-tls
+
+hpa:
+  enabled: false
+
+// values/postgres/dev.yaml
+# values/postgres/dev.yaml
+service:
+  name: postgresql-dev
+  port: 5432
+  type: ClusterIP
+
+storage:
+  size: 10Gi
+  storageClassName: "local-db-dev"
+
+dbName: newsdb_dev
+
+existingSecret:
+  name: postgres-credentials
+  userKey: POSTGRES_USER
+  passwordKey: POSTGRES_PASSWORD
+
+nodeSelector:
+  role: database
+
+tolerations:
+  - key: "role"
+    operator: "Equal"
+    value: "database"
+    effect: "NoSchedule"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+// values/postgres/prod.yaml
+# values/postgres/prod.yaml
+service:
+  name: postgresql-prod
+  port: 5432
+  type: ClusterIP
+
+storage:
+  size: 20Gi
+  storageClassName: "local-db-prod"
+
+dbName: newsdb_prod
+
+existingSecret:
+  name: postgres-credentials
+  userKey: POSTGRES_USER
+  passwordKey: POSTGRES_PASSWORD
+
+nodeSelector:
+  role: database
+
+tolerations:
+  - key: "role"
+    operator: "Equal"
+    value: "database"
+    effect: "NoSchedule"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
