@@ -41,14 +41,15 @@ spec:
               key: api-token
 
 // addons/cert-manager/networkpolicy-certmanager-tls-egress.yaml
-# addons/cert-manager/networkpolicy-certmanager-tls-egress.yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-certmgr-tls-egress
   namespace: cert-manager
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
-  podSelector: {} # all cert-manager pods
+  podSelector: {}
   policyTypes:
     - Egress
   egress:
@@ -63,6 +64,8 @@ spec:
             cidr: 0.0.0.0/0
       ports:
         - protocol: UDP
+          port: 53
+        - protocol: TCP
           port: 53
 
 // addons/cert-manager-chart.yaml
@@ -1468,8 +1471,8 @@ frontend:
     plain:
       VITE_SERVER_URL: "/api"
       VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: "" # CI fills
-      BACKEND_SERVICE_PORT: "" # CI fills
+      BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
+      BACKEND_SERVICE_PORT: "8080"
   ingress:
     enabled: true
     className: nginx
