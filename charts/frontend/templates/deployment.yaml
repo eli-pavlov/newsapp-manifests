@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "frontend.fullname" . }}
+  name: {{ include "frontend.fullname" $ }}
   labels:
-    {{- include "frontend.labels" . | nindent 4 }}
+    {{- include "frontend.labels" $ | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "frontend.name" . }}
-      app.kubernetes.io/component: {{ include "frontend.component" . }}
+      app.kubernetes.io/name: {{ include "frontend.name" $ }}
+      app.kubernetes.io/component: {{ include "frontend.component" $ }}
   template:
     metadata:
       labels:
-        {{- include "frontend.labels" . | nindent 8 }}
+        {{- include "frontend.labels" $ | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -38,7 +38,7 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
       containers:
-        - name: {{ include "frontend.name" . }}
+        - name: {{ include "frontend.name" $ }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
