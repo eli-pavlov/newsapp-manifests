@@ -1,32 +1,58 @@
 {{- /*
-Creates a path-based Ingress for the frontend, accessible via the LB IP.
-This is separate from the main host-based ingress.
+charts/newsapp/templates/path-ingress.yaml
+
+Path-based Ingress for the frontend subchart.
+This template attempts to render the frontend subchart fullname using the subchart scope
+(if available under .Subcharts.frontend). If not available (e.g. during some templating
+scenarios), it falls back to constructing a reliable name using .Release.Name and
+frontend values.
 */ -}}
-{{- if .Values.frontend.pathIngress.enabled }}
+{{- $root := . -}}
+{{- $frontendVals := index $root.Values "frontend" | default dict -}}
+{{- $enabled := (and (hasKey $frontendVals "pathIngress") (index $frontendVals "pathIngress")) -}}
+{{- if and $enabled (index $frontendVals "pathIngress").enabled }}
+
+{{- /* Try to obtain a proper subchart context if the subchart was loaded as a dependency */ -}}
+{{- $feSub := index $root.Subcharts "frontend" -}}
+{{- if $feSub }}
+  {{- /* Build a subchart-like context for include() */ -}}
+  {{- $feCtx := dict "Release" $root.Release "Values" $feSub.Values "Chart" $feSub.Chart "Capabilities" $root.Capabilities -}}
+  {{- $frontendFullname := include "app.fullname" $feCtx -}}
+{{- else }}
+  {{- /* Fallback: construct a sensible fullname using release + frontend app name (or chart name) */ -}}
+  {{- $frontendAppName := default $root.Chart.Name (default "" $root.Values.frontend.app.name) -}}
+  {{- if eq $frontendAppName "" }}{{- $frontendAppName = "frontend" -}}{{- end -}}
+  {{- $frontendFullname := printf "%s-%s" $root.Release.Name $frontendAppName -}}
+{{- end }}
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "app.fullname" .Subcharts.frontend }}-path
+  name: {{ printf "%s-path" (default $frontendFullname (printf "%s-path" $root.Release.Name)) }}
   namespace: {{ .Release.Namespace }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    {{- if .Values.frontend.ingress.certManagerClusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.frontend.ingress.certManagerClusterIssuer | quote }}
+    {{- with $root.Values.frontend.pathIngress.annotations }}
+{{ toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if $root.Values.frontend.ingress.certManagerClusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $root.Values.frontend.ingress.certManagerClusterIssuer | quote }}
     {{- end }}
 spec:
-  ingressClassName: nginx
+  ingressClassName: {{ default "nginx" (default $root.Values.frontend.ingress.className $root.Values.frontend.ingress.class) | quote }}
   tls:
-    - secretName: {{ include "app.fullname" .Subcharts.frontend }}-path-selfsigned-tls
+    {{- with $root.Values.frontend.ingress.tls }}
+{{ toYaml . | nindent 4 }}
+    {{- end }}
   rules:
     - http:
         paths:
-          - path: {{ .Values.frontend.pathIngress.path }}(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: {{ (index $root.Values.frontend.pathIngress "path") | default "/app" | quote }}
+            pathType: {{ (index $root.Values.frontend.pathIngress "pathType") | default "ImplementationSpecific" | quote }}
             backend:
               service:
-                # This now reliably finds the frontend service name
-                name: {{ include "app.fullname" .Subcharts.frontend }}
+                name: {{ printf "%s" $frontendFullname }}
                 port:
-                  number: {{ .Values.frontend.service.port }}
+                  number: {{ default 8080 $root.Values.frontend.service.port }}
 {{- end }}
