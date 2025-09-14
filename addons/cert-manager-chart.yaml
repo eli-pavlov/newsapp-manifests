@@ -1,24 +1,4 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: cert-manager-chart
-  namespace: argocd
-spec:
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: cert-manager
-  source:
-    repoURL: https://charts.jetstack.io
-    chart: cert-manager
-    targetRevision: v1.14.4
-    helm:
-      values: |
-        installCRDs: true
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
----
+# addons/cert-manager-chart.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

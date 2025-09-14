@@ -1,0 +1,24 @@
+# clusters/addons/cert-manager.yaml
+# This is now the single source of truth for the cert-manager Helm release.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  # Assign it to the default project, as it's a cluster-wide utility
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  sources:
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: v1.14.4
+      helm:
+        releaseName: cert-manager
+        valuesObject:
+          installCRDs: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
