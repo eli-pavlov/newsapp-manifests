@@ -17,5 +17,5 @@ spec:
           cloudflare:
             # cert-manager will read the API token from the secret below
             apiTokenSecretRef:
-              name: cloudflare-api-token
+              name: cloudflare-api-token-secret
               key: api-token

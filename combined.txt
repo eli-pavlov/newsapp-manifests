@@ -1,14 +1,25 @@
 // addons/cert-manager/issuers.yaml
-# addons/cert-manager/issuers.yaml
-# Self-signed issuer for hands-free origin certs in dev/prod + ArgoCD
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: selfsigned
+  name: letsencrypt-dns01-cloudflare
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "3"
 spec:
-  selfSigned: {}
+  acme:
+    # Use staging for testing; swap to production URL for live certs
+    # production: https://acme-v02.api.letsencrypt.org/directory
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: contact@weblightenment.com
+    privateKeySecretRef:
+      name: letsencrypt-dns01-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            # cert-manager will read the API token from the secret below
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
 
 // addons/db-local-pv/dev/pv.yaml
 apiVersion: v1
@@ -1333,7 +1344,7 @@ frontend:
     enabled: true
     className: nginx
     # <-- NEW: have cert-manager issue a self-signed cert automatically
-    certManagerClusterIssuer: selfsigned
+    certManagerClusterIssuer: letsencrypt-dns01-cloudflare
     hosts:
       - host: newsapp-dev.weblightenment.com
         paths:
@@ -1386,7 +1397,7 @@ frontend:
     enabled: true
     className: nginx
     # <-- NEW: have cert-manager issue a self-signed cert automatically
-    certManagerClusterIssuer: selfsigned
+    certManagerClusterIssuer: letsencrypt-dns01-cloudflare
     hosts:
       - host: newsapp.weblightenment.com
         paths:
