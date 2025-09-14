@@ -6,7 +6,7 @@ replicaCount: 2
 
 image:
   repository: elipavlov/newsapp-backend
-  tag: dev-local
+  tag: latest-66766bc     # <- updated to an image that exists on Docker Hub
   pullPolicy: IfNotPresent
 
 service:
@@ -44,7 +44,6 @@ env:
 hpa:
   enabled: false
 
-# db block is not used by charts/backend templates, but keep it if you reference it elsewhere
 db:
   enabled: true
   service:

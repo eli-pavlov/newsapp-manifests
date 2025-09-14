@@ -414,21 +414,21 @@ appVersion: "1.0.0"
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "frontend.fullname" . }}
+  name: {{ include "frontend.fullname" $ }}
   labels:
-    {{- include "frontend.labels" . | nindent 4 }}
+    {{- include "frontend.labels" $ | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "frontend.name" . }}
-      app.kubernetes.io/component: {{ include "frontend.component" . }}
+      app.kubernetes.io/name: {{ include "frontend.name" $ }}
+      app.kubernetes.io/component: {{ include "frontend.component" $ }}
   template:
     metadata:
       labels:
-        {{- include "frontend.labels" . | nindent 8 }}
+        {{- include "frontend.labels" $ | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -451,7 +451,7 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
       containers:
-        - name: {{ include "frontend.name" . }}
+        - name: {{ include "frontend.name" $ }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -534,12 +534,12 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "frontend.fullname" . }}
+  name: {{ include "frontend.fullname" $ }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "frontend.fullname" . }}
+    name: {{ include "frontend.fullname" $ }}
   minReplicas: {{ default 1 $hpa.minReplicas }}
   maxReplicas: {{ default 3 $hpa.maxReplicas }}
   metrics:
@@ -633,16 +633,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "frontend.fullname" . }}
+  name: {{ include "frontend.fullname" $ }}
   labels:
-    app.kubernetes.io/name: {{ include "frontend.name" . }}
+    app.kubernetes.io/name: {{ include "frontend.name" $ }}
   annotations:
     argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "2" }}"
 spec:
   type: {{ .Values.service.type }}
   selector:
-    app.kubernetes.io/name: {{ include "frontend.name" . }}
-    app.kubernetes.io/component: {{ include "frontend.component" . }}
+    app.kubernetes.io/name: {{ include "frontend.name" $ }}
+    app.kubernetes.io/component: {{ include "frontend.component" $ }}
   ports:
     - name: http
       port: {{ .Values.service.port }}
@@ -1531,21 +1531,16 @@ hpa:
 app:
   name: frontend
   syncWave: "2"
-
 replicaCount: 2
-
 image:
   repository: elipavlov/newsapp-frontend
   tag: latest-ec40111
   pullPolicy: IfNotPresent
-
 service:
   type: ClusterIP
   port: 8080
-
 nodeSelector:
   role: application
-
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -1557,7 +1552,6 @@ affinity:
                 operator: In
                 values: ["frontend"]
           topologyKey: kubernetes.io/hostname
-
 resources:
   requests:
     cpu: 50m
@@ -1565,14 +1559,12 @@ resources:
   limits:
     cpu: 200m
     memory: 128Mi
-
 env:
   plain:
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
     BACKEND_SERVICE_HOST: "backend.default.svc.cluster.local"
     BACKEND_SERVICE_PORT: "8080"
-
 ingress:
   enabled: true
   className: nginx
@@ -1585,9 +1577,18 @@ ingress:
   tls:
     - hosts: ["newsapp.weblightenment.com"]
       secretName: newsapp-selfsigned-tls
-
 hpa:
   enabled: false
+frontend:
+  image:
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc
+  env:
+    plain:
+      VITE_SERVER_URL: /api
+      VITE_NEWS_INTERVAL_IN_MIN: "5"
+      BACKEND_SERVICE_HOST: ""
+      BACKEND_SERVICE_PORT: ""
 
 // values/postgres/dev.yaml
 # values/postgres/dev.yaml

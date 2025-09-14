@@ -38,11 +38,28 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
 
-      {{- /* Pod-level securityContext injected from chart values (e.g. fsGroup) */ -}}
+      {{- /* Pod-level securityContext injected from chart values (e.g. fsGroup, runAsUser) */ -}}
       {{- with .Values.securityContext }}
       securityContext:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
+      {{- /* Optional init container to ensure the PV directory has correct owner/group (fixes permission denied on mkdir) */ -}}
+      {{- if .Values.initFixPermissions.enabled }}
+      initContainers:
+        - name: fix-permissions
+          image: {{ .Values.initFixPermissions.image | quote }}
+          command:
+            - sh
+            - -c
+            - "chown -R {{ .Values.initFixPermissions.ownerUid }}:{{ .Values.initFixPermissions.ownerGid }} {{ .Values.initFixPermissions.chownPath }} || true"
+          securityContext:
+            runAsUser: {{ .Values.initFixPermissions.runAsUser }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.initFixPermissions.chownPath }}
+      {{- end }}
+
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

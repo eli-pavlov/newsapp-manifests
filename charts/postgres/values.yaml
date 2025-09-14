@@ -24,7 +24,17 @@ resources:
 
 # Pod-level security context (helps with volume permissions)
 securityContext:
+  runAsUser: 999
   fsGroup: 999
+
+# Init-container helper to fix ownership of mounted PV (enabled by default)
+initFixPermissions:
+  enabled: true
+  image: busybox:1.36
+  runAsUser: 0     # run init container as root so chown can change host dir perms
+  ownerUid: 999
+  ownerGid: 999
+  chownPath: /var/lib/postgresql/data
 
 # Use credentials from an existing Secret created by bootstrap:
 existingSecret:
