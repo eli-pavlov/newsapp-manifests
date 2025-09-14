@@ -784,8 +784,8 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                # This assumes a predictable service name for the frontend
-                name: {{ .Values.frontend.fullnameOverride | default (printf "%s-%s" .Release.Name .Values.frontend.name) }}
+                # This now reliably finds the frontend service name
+                name: {{ include "app.fullname" .Subcharts.frontend }}
                 port:
                   number: {{ .Values.frontend.service.port }}
 {{- end }}
@@ -1262,9 +1262,6 @@ spec:
       - ApplyOutOfSyncOnly=true
       - RespectIgnoreDifferences=true
 
-// combined.txt
-
-
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}
 VITE_NEWS_INTERVAL_IN_MIN= {{VITE_NEWS_INTERVAL_IN_MIN}}
@@ -1349,10 +1346,6 @@ networkPolicy:
   backendEgressWeb:
     enabled: true
 
-pathIngress:
-  enabled: true
-  path: /dev
-
 // values/backend/prod.yaml
 backend:
   app: {name: backend, type: backend}
@@ -1413,10 +1406,6 @@ db:
     size: 20Gi
     storageClassName: "local-db-prod"
 
-pathIngress:
-  enabled: true
-  path: /app
-
 // values/frontend/dev.yaml
 frontend:
   app: { name: frontend, type: frontend, syncWave: "2" }
@@ -1473,6 +1462,10 @@ frontend:
     tls:
       - hosts: ["newsapp-dev.weblightenment.com"]
         secretName: newsapp-dev-selfsigned-tls
+        
+pathIngress:
+  enabled: true
+  path: /dev
 
 // values/frontend/prod.yaml
 frontend:
@@ -1522,3 +1515,7 @@ frontend:
     tls:
       - hosts: ["newsapp.weblightenment.com"]
         secretName: newsapp-selfsigned-tls
+
+pathIngress:
+  enabled: true
+  path: /app

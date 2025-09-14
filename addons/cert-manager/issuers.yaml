@@ -1,38 +1,5 @@
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-staging
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  acme:
-    email: contact@weblightenment.com
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
-    privateKeySecretRef:
-      name: letsencrypt-staging-account-key
-    solvers:
-      - http01:
-          ingress:
-            class: nginx
----
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  acme:
-    email: contact@weblightenment.com
-    server: https://acme-v02.api.letsencrypt.org/directory
-    privateKeySecretRef:
-      name: letsencrypt-prod-account-key
-    solvers:
-      - http01:
-          ingress:
-            class: nginx
----
-# NEW: self-signed issuer for hands-free origin certs in dev/prod + ArgoCD
+# addons/cert-manager/issuers.yaml
+# Self-signed issuer for hands-free origin certs in dev/prod + ArgoCD
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
