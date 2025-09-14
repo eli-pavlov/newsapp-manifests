@@ -102,23 +102,22 @@ jobs:
           fi
 
 
-
-      - name: Create/update Helm repo index
-        if: steps.package.outputs.packed == 'true'
-        run: |
-          set -euo pipefail
-          INDEX_URL="${{ steps.repoinfo.outputs.url }}"
-          helm repo index $OUT_DIR --url "${INDEX_URL}"
-
       - name: Update umbrella Chart.yaml dependency versions (optional)
         if: steps.package.outputs.packed == 'true'
         run: |
           set -euo pipefail
           cd $GITHUB_WORKSPACE
-          # parse the packaged files
-          for tgz in out/*.tgz; do
+
+          # iterate filenames from packed_list
+          IFS=' ' read -r -a files <<< "${{ steps.package.outputs.packed_list }}"
+
+          for tgz in "${files[@]}"; do
+            if [ -z "$tgz" ] || [ ! -f "$tgz" ]; then
+              echo "Skipping missing file: $tgz"
+              continue
+            fi
             fn=$(basename "$tgz")
-            # filename is name-version.tgz; extract name & version
+            # filename is name-version.tgz; extract name & version (handles hyphens in name)
             name=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\1/')
             version=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\2/')
             echo "Setting dependency ${name} -> version ${version}"
@@ -127,7 +126,7 @@ jobs:
             ' charts/newsapp/Chart.yaml
           done
 
-          # Commit the bump back to repo
+          # Commit the bump back to repo (consider opening a PR instead of pushing to main)
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add charts/newsapp/Chart.yaml
@@ -135,8 +134,10 @@ jobs:
             echo "No dependency version changes to commit"
           else
             git commit -m "ci(charts): bump dependency versions to packaged artifacts"
+            # WARNING: pushing to main will re-trigger workflow on push — consider creating a branch & a PR instead.
             git push origin HEAD:main
           fi
+
 
       - name: Publish to gh-pages (push out/ to gh-pages)
         if: steps.package.outputs.packed == 'true'
