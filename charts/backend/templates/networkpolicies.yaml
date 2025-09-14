@@ -1,0 +1,47 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: be-ingress-from-fe
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: frontend
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+
+{{- if .Values.networkPolicy.backendEgressWeb.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: be-egress-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            {{- if .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
+            except:
+            {{- range $cidr := .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
+              - {{ $cidr | quote }}
+            {{- end }}
+            {{- end }}
+      ports:
+      {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
+        - protocol: TCP
+          port: {{ $p }}
+      {{- end }}
+{{- end }}
+{{- end }}

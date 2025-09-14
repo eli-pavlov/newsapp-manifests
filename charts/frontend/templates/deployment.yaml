@@ -1,22 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "app.fullname" . }}
+  name: {{ include "frontend.fullname" . }}
   labels:
-    {{- /* include name, instance, and component so anti-affinity can target the component */ -}}
-    {{- include "app.labels" . | nindent 4 }}
+    {{- include "frontend.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "app.name" . }}
-      app.kubernetes.io/component: {{ include "app.component" . }}
+      app.kubernetes.io/name: {{ include "frontend.name" . }}
+      app.kubernetes.io/component: {{ include "frontend.component" . }}
   template:
     metadata:
       labels:
-        {{- include "app.labels" . | nindent 8 }}
+        {{- include "frontend.labels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -39,19 +38,12 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
       containers:
-        - name: {{ include "app.name" . }}
+        - name: {{ include "frontend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml . | indent 12 }}
-          {{- end }}
           ports:
             - containerPort: {{ .Values.service.port }}
               name: http
-              {{- if .Values.service.hostPort }}
-              hostPort: {{ .Values.service.hostPort }}
-              {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -72,7 +64,6 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
-
           {{- with .Values.probes }}
           {{- if .readiness }}
           readinessProbe:
@@ -91,7 +82,6 @@ spec:
             successThreshold: {{ .readiness.successThreshold | default 1 }}
             failureThreshold: {{ .readiness.failureThreshold | default 3 }}
           {{- end }}
-
           {{- if .liveness }}
           livenessProbe:
             {{- if eq (.liveness.type | default "tcp") "http" }}
@@ -109,7 +99,6 @@ spec:
             successThreshold: {{ .liveness.successThreshold | default 1 }}
             failureThreshold: {{ .liveness.failureThreshold | default 6 }}
           {{- end }}
-
           {{- if and .startup .startup.enabled }}
           startupProbe:
             {{- if eq (.startup.type | default "tcp") "http" }}

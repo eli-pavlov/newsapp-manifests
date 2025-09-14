@@ -1,7 +1,7 @@
+# Default values for frontend chart
 app:
-  name: app
-  type: backend # or "frontend"
-  syncWave: "1"
+  name: frontend
+  syncWave: "2"
 
 image:
   repository: ""
@@ -16,25 +16,16 @@ service:
   nodePort: null
   hostPort: null
 
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 101
-  runAsGroup: 101
-  fsGroup: 101
+podSecurityContext: {}
+containerSecurityContext: {}
 
-containerSecurityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-
-# Default resources so HPA (if enabled) has CPU requests to target.
 resources:
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 50m
+    memory: 64Mi
   limits:
-    memory: 256Mi
+    cpu: 200m
+    memory: 128Mi
 
 nodeSelector: {}
 tolerations: []
@@ -52,27 +43,23 @@ hpa:
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
 
 ingress:
   enabled: false
   className: ""
   annotations: {}
-  # Easiest TLS wiring—set to "letsencrypt-staging" or "letsencrypt-prod"
   certManagerClusterIssuer: ""
   hosts: []
   tls: []
 
 probes:
   readiness:
-    type: tcp        # "tcp" or "http"
-    # path: /healthz # only used when type=http
+    type: tcp
     initialDelaySeconds: 5
     periodSeconds: 10
     timeoutSeconds: 2
     successThreshold: 1
     failureThreshold: 3
-
   liveness:
     type: tcp
     initialDelaySeconds: 30
@@ -80,9 +67,11 @@ probes:
     timeoutSeconds: 2
     successThreshold: 1
     failureThreshold: 6
-
   startup:
     enabled: true
     type: tcp
     periodSeconds: 5
     failureThreshold: 30
+
+networkPolicy:
+  enabled: true

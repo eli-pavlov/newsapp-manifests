@@ -1,19 +1,14 @@
-{{- /*
-Defensive HPA template:
-- Works even if `hpa:` block is not present in values.
-- Uses defaults from charts/app/values.yaml, but still guards against nil.
-*/ -}}
 {{- $hpa := .Values.hpa | default dict -}}
 {{- if and ($hpa.enabled) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "app.fullname" . }}
+  name: {{ include "backend.fullname" . }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "app.fullname" . }}
+    name: {{ include "backend.fullname" . }}
   minReplicas: {{ default 1 $hpa.minReplicas }}
   maxReplicas: {{ default 3 $hpa.maxReplicas }}
   metrics:
@@ -23,12 +18,4 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
-    {{- if $hpa.targetMemoryUtilizationPercentage }}
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
-    {{- end }}
 {{- end }}

@@ -1,21 +1,14 @@
 backend:
   app: { name: backend, type: backend }
   fullnameOverride: backend
-
   replicaCount: 2
-
   image:
     repository: elipavlov/newsapp-backend
     tag: dev-local
-
   service:
     type: ClusterIP
     port: 8080
-
-  # Run BE only on application workers
   nodeSelector: { role: application }
-
-  # Spread BE pods across node1+2 by component label
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -27,8 +20,6 @@ backend:
                   operator: In
                   values: ["backend"]
             topologyKey: kubernetes.io/hostname
-
-  # Modest resources
   resources:
     requests:
       cpu: 100m
@@ -36,13 +27,11 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
-
   env:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
     secretRef: backend-db-connection
 
-# In-cluster DB for dev (pinned to DB node, using Local PV backed by OCI block volume)
 db:
   enabled: true
   service:
@@ -50,25 +39,20 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_dev
-
-  # Pin to DB worker and tolerate its taint
   nodeSelector: { role: database }
   tolerations:
     - key: "role"
       operator: "Equal"
       value: "database"
       effect: "NoSchedule"
-
   existingSecret:
     name: postgres-credentials
     userKey: POSTGRES_USER
     passwordKey: POSTGRES_PASSWORD
-
   storage:
     size: 10Gi
     storageClassName: "local-db-dev"
 
-# Opt-in: allow backend to reach internet (80/443) while keeping cluster ranges excluded
 networkPolicy:
   backendEgressWeb:
     enabled: true

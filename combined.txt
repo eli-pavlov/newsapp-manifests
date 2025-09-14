@@ -1,175 +1,4 @@
-// .github/workflows/publish-charts.yml
-name: Publish Helm charts to gh-pages
-
-on:
-  push:
-    paths:
-      - 'charts/**'
-    branches:
-      - main
-  workflow_dispatch: {}
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
-    env:
-      OUT_DIR: out
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install Helm
-        run: |
-          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-          chmod 700 get_helm.sh
-          ./get_helm.sh
-
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64"
-          sudo chmod +x /usr/local/bin/yq
-
-      - name: Determine owner/repo & published URL
-        id: repoinfo
-        run: |
-          echo "owner=$(echo $GITHUB_REPOSITORY | cut -d/ -f1)" >> $GITHUB_OUTPUT
-          echo "repo=$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_OUTPUT
-          echo "url=https://${GITHUB_REPOSITORY_OWNER}.github.io/$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_OUTPUT
-
-      - name: Prepare output directory
-        run: |
-          rm -rf $OUT_DIR
-          mkdir -p $OUT_DIR
-
-      - name: Package changed charts
-        id: package
-        run: |
-          set -euo pipefail
-          SHORT=${GITHUB_SHA:0:7}
-          PACKED_LIST=""
-
-          # fetch main to compare (ensure we have history)
-          git fetch --no-tags --prune --depth=1 origin main || true
-
-          # Detect changed chart directories under charts/
-          mapfile -t changed_files < <(git diff --name-only origin/main...HEAD || true)
-          declare -A changed_dirs=()
-          for f in "${changed_files[@]}"; do
-            if [[ "$f" == charts/* ]]; then
-              dir=$(echo "$f" | awk -F/ '{print $1"/"$2}')
-              changed_dirs["$dir"]=1
-            fi
-          done
-
-          # If none found, fallback to your explicit list (optional)
-          if [ "${#changed_dirs[@]}" -eq 0 ]; then
-            echo "No changed charts detected vs origin/main; using default list"
-            CHARTS_TO_PUBLISH=(charts/app charts/postgres)
-          else
-            CHARTS_TO_PUBLISH=()
-            for d in "${!changed_dirs[@]}"; do CHARTS_TO_PUBLISH+=("$d"); done
-          fi
-
-          for CH in "${CHARTS_TO_PUBLISH[@]}"; do
-            if [ -d "${CH}" ]; then
-              base=$(basename "${CH}")
-              version=$(yq -r '.version' "${CH}/Chart.yaml")
-              newver="${version}-dev.${SHORT}"
-              echo "Packaging ${CH} -> version ${newver}"
-              helm package "${CH}" -d $OUT_DIR --version "${newver}"
-              PACKED_LIST="${PACKED_LIST}${OUT_DIR}/${base}-${newver}.tgz "
-            else
-              echo "Skipping ${CH}: not present"
-            fi
-          done
-
-          if [ -z "${PACKED_LIST}" ]; then
-            echo "::warning::No charts packaged (no chart dirs found)"
-            echo "packed=false" >> "$GITHUB_OUTPUT"
-            echo "packed_list=" >> "$GITHUB_OUTPUT"
-          else
-            packed_list_trimmed="$(echo ${PACKED_LIST})"
-            echo "packed=true" >> "$GITHUB_OUTPUT"
-            echo "packed_list=${packed_list_trimmed}" >> "$GITHUB_OUTPUT"
-          fi
-
-
-
-      - name: Create/update Helm repo index (merge with existing)
-        if: steps.package.outputs.packed == 'true'
-        run: |
-          set -euo pipefail
-          INDEX_URL="${{ steps.repoinfo.outputs.url }}"
-          # try to fetch existing index.yaml from gh-pages (ignore errors)
-          mkdir -p $OUT_DIR
-          curl -fsS "${INDEX_URL}/index.yaml" -o "${OUT_DIR}/existing-index.yaml" || true
-
-          # if existing index exists, merge; otherwise create new index
-          if [ -s "${OUT_DIR}/existing-index.yaml" ]; then
-            echo "Merging with existing index.yaml"
-            helm repo index $OUT_DIR --url "${INDEX_URL}" --merge "${OUT_DIR}/existing-index.yaml"
-          else
-            echo "No existing index found; creating new index"
-            helm repo index $OUT_DIR --url "${INDEX_URL}"
-          fi
-
-
-      - name: Update umbrella Chart.yaml dependency versions (optional)
-        if: steps.package.outputs.packed == 'true'
-        run: |
-          set -euo pipefail
-          cd $GITHUB_WORKSPACE
-
-          # iterate filenames from packed_list
-          IFS=' ' read -r -a files <<< "${{ steps.package.outputs.packed_list }}"
-
-          for tgz in "${files[@]}"; do
-            if [ -z "$tgz" ] || [ ! -f "$tgz" ]; then
-              echo "Skipping missing file: $tgz"
-              continue
-            fi
-            fn=$(basename "$tgz")
-            # filename is name-version.tgz; extract name & version (handles hyphens in name)
-            name=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\1/')
-            version=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\2/')
-            echo "Setting dependency ${name} -> version ${version}"
-            yq -i --arg n "$name" --arg v "$version" '
-              (.dependencies[] | select(.name == $n) .version) = $v
-            ' charts/newsapp/Chart.yaml
-          done
-
-          # Commit the bump back to repo (consider opening a PR instead of pushing to main)
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add charts/newsapp/Chart.yaml
-          if git diff --cached --quiet; then
-            echo "No dependency version changes to commit"
-          else
-            git commit -m "ci(charts): bump dependency versions to packaged artifacts"
-            # WARNING: pushing to main will re-trigger workflow on push — consider creating a branch & a PR instead.
-            git push origin HEAD:main
-          fi
-
-
-      - name: Publish to gh-pages (push out/ to gh-pages)
-        if: steps.package.outputs.packed == 'true'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./out
-          # optional: publish branch can be changed; default is gh-pages
-          # publish_branch: gh-pages
-
 // addons/cert-manager/issuers.yaml
-# addons/cert-manager/issuers.yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -178,7 +7,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   acme:
-    # production Let's Encrypt
     server: https://acme-v02.api.letsencrypt.org/directory
     email: contact@weblightenment.com
     privateKeySecretRef:
@@ -198,7 +26,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   acme:
-    # staging endpoint — use this for dev/testing to avoid production rate limits
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     email: contact@weblightenment.com
     privateKeySecretRef:
@@ -535,26 +362,43 @@ spec:
 {{- end }}
 
 // charts/app/templates/ingress.yaml
-apiVersion: v1
-kind: Service
+{{- $root := . -}}
+{{- if and (hasKey $root.Values "ingress") (not (empty $root.Values.ingress)) $root.Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
+  name: {{ include "app.fullname" $root }}
   annotations:
-    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
+    {{- if $root.Values.ingress.annotations }}
+{{ toYaml $root.Values.ingress.annotations | nindent 4 }}
+    {{- end }}
+    {{- if $root.Values.ingress.certManagerClusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $root.Values.ingress.certManagerClusterIssuer | quote }}
+    {{- end }}
 spec:
-  type: {{ .Values.service.type }}
-  selector:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-    app.kubernetes.io/component: {{ include "app.component" . }}
-  ports:
-    - name: http
-      port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
-      nodePort: {{ .Values.service.nodePort }}
-      {{- end }}
+  {{- with $root.Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  rules:
+    {{- range $host := $root.Values.ingress.hosts }}
+    - host: {{ $host.host | quote }}
+      http:
+        paths:
+          {{- range $p := $host.paths }}
+          - path: {{ $p.path | quote }}
+            pathType: {{ $p.pathType | default "Prefix" | quote }}
+            backend:
+              service:
+                name: {{ include "app.fullname" $root }}
+                port:
+                  number: {{ $root.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with $root.Values.ingress.tls }}
+  tls:
+{{ toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
 
 // charts/app/templates/service.yaml
 apiVersion: v1
@@ -697,125 +541,107 @@ probes:
     periodSeconds: 5
     failureThreshold: 30
 
-// charts/newsapp/Chart.yaml
+// charts/backend/Chart.yaml
 apiVersion: v2
-name: newsapp
-description: Umbrella chart for frontend + backend (+ optional in-cluster Postgres)
+name: backend
+description: Backend application chart (newsapp)
 type: application
-version: 0.2.0
+version: 0.1.0
 appVersion: "1.0.0"
 
-
-dependencies:
-  - name: app
-    alias: backend
-    repository: "https://eli-pavlov.github.io/newsapp-manifests"
-    version: "0.1.0"
-  - name: app
-    alias: frontend
-    repository: "https://eli-pavlov.github.io/newsapp-manifests"
-    version: "0.1.0"
-  - name: postgres
-    alias: db
-    repository: "https://eli-pavlov.github.io/newsapp-manifests"
-    version: "0.1.0"
-    condition: db.enabled
-
-// charts/newsapp/templates/networkpolicies.yaml
-{{- /*
-Minimal lock-down:
-... (comment unchanged)
-*/ -}}
-{{- $np := .Values.networkPolicy | default dict -}}
-{{- $beeg := $np.backendEgressWeb | default dict -}}
-{{- if $np.enabled }}
-
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+// charts/backend/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: default-deny-all
+  name: {{ include "backend.fullname" . }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
 spec:
-  podSelector: {}
-  policyTypes: ["Ingress","Egress"]
-
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-dns-egress
-spec:
-  podSelector: {}
-  policyTypes: ["Egress"]
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: coredns
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-
----
-# Ingress from ingress-nginx -> frontend on 8080
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: fe-allow-from-ingress
-spec:
-  podSelector:
+  replicas: {{ .Values.replicaCount }}
+  selector:
     matchLabels:
-      app.kubernetes.io/component: frontend
-  policyTypes: ["Ingress"]
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: 8080
+      app.kubernetes.io/name: {{ include "backend.name" . }}
+      app.kubernetes.io/component: {{ include "backend.component" . }}
+  template:
+    metadata:
+      labels:
+        {{- include "backend.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "backend.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
 
----
-# FE -> BE egress on 8080
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+// charts/backend/templates/hpa.yaml
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
 metadata:
-  name: fe-egress-be
+  name: {{ include "backend.fullname" . }}
 spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: frontend
-  policyTypes: ["Egress"]
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/component: backend
-      ports:
-        - protocol: TCP
-          port: 8080
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "backend.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+{{- end }}
 
----
-# BE <- FE ingress on 8080
+// charts/backend/templates/networkpolicies.yaml
+{{- if .Values.networkPolicy.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -832,51 +658,40 @@ spec:
               app.kubernetes.io/component: frontend
       ports:
         - protocol: TCP
-          port: 8080
+          port: {{ .Values.service.port }}
 
-{{- if .Values.db.enabled }}
+{{- if .Values.networkPolicy.backendEgressWeb.enabled }}
 ---
-# BE -> DB egress on 5432
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: be-egress-db
+  name: be-egress-web
 spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/component: backend
   policyTypes: ["Egress"]
   egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ .Values.db.service.name | default "postgresql" | quote }}
-      ports:
-        - protocol: TCP
-          port: {{ .Values.db.service.port | default 5432 }}
-
----
-# DB <- BE ingress on 5432
+    - to:a{{- if .Values.networkPolicy.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: db-ingress-from-be
+  name: be-ingress-from-fe
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Values.db.service.name | default "postgresql" | quote }}
+      app.kubernetes.io/component: backend
   policyTypes: ["Ingress"]
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/component: backend
+              app.kubernetes.io/component: frontend
       ports:
         - protocol: TCP
-          port: {{ .Values.db.service.port | default 5432 }}
-{{- end }}
+          port: {{ .Values.service.port }}
 
-{{- if and $beeg.enabled }}
+{{- if .Values.networkPolicy.backendEgressWeb.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -891,29 +706,344 @@ spec:
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
-            {{- if $beeg.exceptCidrs }}
+            {{- if .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
             except:
-            {{- range $cidr := $beeg.exceptCidrs }}
+            {{- range $cidr := .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
               - {{ $cidr | quote }}
             {{- end }}
             {{- end }}
       ports:
-      {{- range $p := ($beeg.ports | default (list 80 443)) }}
+      {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
         - protocol: TCP
           port: {{ $p }}
       {{- end }}
 {{- end }}
+{{- end }}
 
----
-# Allow ACME solver pods to be reached by ingress-nginx for HTTP01
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            {{- if .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
+            except:
+            {{- range $cidr := .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
+              - {{ $cidr | quote }}
+            {{- end }}
+            {{- end }}
+      ports:
+      {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
+        - protocol: TCP
+          port: {{ $p }}
+      {{- end }}
+{{- end }}
+{{- end }}
+
+// charts/backend/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "backend.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "backend.name" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "1" }}"
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "backend.name" . }}
+    app.kubernetes.io/component: {{ include "backend.component" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+
+// charts/backend/templates/_helpers.tpl
+{{- define "backend.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
+{{- end }}
+
+{{- define "backend.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "backend.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{- define "backend.component" -}}
+{{- if .Values.app.name }}{{ .Values.app.name | trunc 63 | trimSuffix "-" }}{{ else }}{{ .Chart.Name | trunc 63 | trimSuffix "-" }}{{ end -}}
+{{- end }}
+
+{{- define "backend.labels" -}}
+app.kubernetes.io/name: {{ include "backend.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: {{ include "backend.component" . }}
+{{- end }}
+
+// charts/backend/values.yaml
+app:
+  name: backend
+  syncWave: "1"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+podSecurityContext: {}
+containerSecurityContext: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets: []
+
+env:
+  plain: {}
+  secretRef: ""
+  configRef: ""
+
+hpa:
+  enabled: false
+
+networkPolicy:
+  enabled: true
+  backendEgressWeb:
+    enabled: false
+    exceptCidrs: []
+    ports: [80,443]
+
+// charts/frontend/Chart.yaml
+apiVersion: v2
+name: frontend
+description: Frontend application chart (newsapp)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+// charts/frontend/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "frontend.fullname" . }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "frontend.name" . }}
+      app.kubernetes.io/component: {{ include "frontend.component" . }}
+  template:
+    metadata:
+      labels:
+        {{- include "frontend.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "frontend.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- range $k, $v := .Values.env.plain }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          envFrom:
+            {{- if .Values.env.configRef }}
+            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- end }}
+            {{- if .Values.env.secretRef }}
+            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- end }}
+          {{- end }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          {{- with .Values.probes }}
+          {{- if .readiness }}
+          readinessProbe:
+            {{- if eq (.readiness.type | default "tcp") "http" }}
+            httpGet:
+              path: {{ .readiness.path | default "/" | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .readiness.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.Values.service.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .readiness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .readiness.failureThreshold | default 3 }}
+          {{- end }}
+          {{- if .liveness }}
+          livenessProbe:
+            {{- if eq (.liveness.type | default "tcp") "http" }}
+            httpGet:
+              path: {{ .liveness.path | default "/" | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .liveness.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.Values.service.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .liveness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .liveness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .liveness.successThreshold | default 1 }}
+            failureThreshold: {{ .liveness.failureThreshold | default 6 }}
+          {{- end }}
+          {{- if and .startup .startup.enabled }}
+          startupProbe:
+            {{- if eq (.startup.type | default "tcp") "http" }}
+            httpGet:
+              path: {{ .startup.path | default "/" | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .startup.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.Values.service.port }}
+            {{- end }}
+            periodSeconds: {{ .startup.periodSeconds | default 5 }}
+            failureThreshold: {{ .startup.failureThreshold | default 30 }}
+          {{- end }}
+          {{- end }}
+
+// charts/frontend/templates/hpa.yaml
+{{- $hpa := .Values.hpa | default dict -}}
+{{- if and ($hpa.enabled) }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "frontend.fullname" . }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "frontend.fullname" . }}
+  minReplicas: {{ default 1 $hpa.minReplicas }}
+  maxReplicas: {{ default 3 $hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
+{{- end }}
+
+// charts/frontend/templates/ingress.yaml
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "frontend.fullname" . }}
+  annotations:
+    {{- if .Values.ingress.annotations }}
+{{ toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- end }}
+    {{- if .Values.ingress.certManagerClusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.certManagerClusterIssuer | quote }}
+    {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  rules:
+    {{- range $host := .Values.ingress.hosts }}
+    - host: {{ $host.host | quote }}
+      http:
+        paths:
+          {{- range $p := $host.paths }}
+          - path: {{ $p.path | quote }}
+            pathType: {{ $p.pathType | default "Prefix" | quote }}
+            backend:
+              service:
+                name: {{ include "frontend.fullname" . }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+{{ toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+// charts/frontend/templates/networkpolicies.yaml
+{{- if .Values.networkPolicy.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-acme-http01
+  name: fe-allow-from-ingress
 spec:
   podSelector:
     matchLabels:
-      acme.cert-manager.io/http01-solver: "true"
+      app.kubernetes.io/component: frontend
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.port }}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-acme-http01-to-fe
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
   policyTypes: ["Ingress"]
   ingress:
     - from:
@@ -923,112 +1053,133 @@ spec:
       ports:
         - protocol: TCP
           port: 8089
-
 {{- end }}
 
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+// charts/frontend/templates/service.yaml
+apiVersion: v1
+kind: Service
 metadata:
-  name: argocd-egress-git-helm
-  namespace: argocd
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd
-  policyTypes: ["Egress"]
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-      ports:
-        - protocol: TCP
-          port: 443
-
-// charts/newsapp/templates/path-ingress.yaml
-{{- /*
-Creates a path-based Ingress for the frontend, accessible via the LB IP.
-This is separate from the main host-based ingress.
-*/ -}}
-{{- if .Values.frontend.pathIngress.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ include "app.fullname" .Subcharts.frontend }}-path
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "frontend.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "frontend.name" . }}
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    {{- if .Values.frontend.ingress.certManagerClusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.frontend.ingress.certManagerClusterIssuer | quote }}
-    {{- end }}
+    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "2" }}"
 spec:
-  ingressClassName: nginx
-  tls:
-    - secretName: {{ include "app.fullname" .Subcharts.frontend }}-path-selfsigned-tls
-  rules:
-    - http:
-        paths:
-          - path: {{ .Values.frontend.pathIngress.path }}(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                # This now reliably finds the frontend service name
-                name: {{ include "app.fullname" .Subcharts.frontend }}
-                port:
-                  number: {{ .Values.frontend.service.port }}
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ include "frontend.name" . }}
+    app.kubernetes.io/component: {{ include "frontend.component" . }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+
+// charts/frontend/templates/_helpers.tpl
+{{- define "frontend.name" -}}
+{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
 {{- end }}
 
-// charts/newsapp/values.schema.json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "backend":  { "type": "object" },
-    "frontend": { "type": "object" },
-    "db":       { "type": "object" },
-    "networkPolicy": {
-      "type": "object",
-      "properties": {
-        "enabled": { "type": "boolean" },
-        "backendEgressWeb": {
-          "type": "object",
-          "properties": {
-            "enabled": { "type": "boolean" },
-            "exceptCidrs": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "ports": {
-              "type": "array",
-              "items": { "type": "integer", "minimum": 1, "maximum": 65535 }
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": true
-    }
-  },
-  "additionalProperties": false
-}
+{{- define "frontend.fullname" -}}
+{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $name := include "frontend.name" . -}}
+{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
+{{- end -}}
+{{- end }}
 
-// charts/newsapp/values.yaml
-# Intentionally minimal; subchart values come from Argo CD value files.
+{{- define "frontend.component" -}}
+{{- if .Values.app.name }}{{ .Values.app.name | trunc 63 | trimSuffix "-" }}{{ else }}{{ .Chart.Name | trunc 63 | trimSuffix "-" }}{{ end -}}
+{{- end }}
+
+{{- define "frontend.labels" -}}
+app.kubernetes.io/name: {{ include "frontend.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: {{ include "frontend.component" . }}
+{{- end }}
+
+// charts/frontend/values.yaml
+# Default values for frontend chart
+app:
+  name: frontend
+  syncWave: "2"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+  nodePort: null
+  hostPort: null
+
+podSecurityContext: {}
+containerSecurityContext: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets: []
+
+env:
+  plain: {}
+  secretRef: ""
+  configRef: ""
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  certManagerClusterIssuer: ""
+  hosts: []
+  tls: []
+
+probes:
+  readiness:
+    type: tcp
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 3
+  liveness:
+    type: tcp
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 6
+  startup:
+    enabled: true
+    type: tcp
+    periodSeconds: 5
+    failureThreshold: 30
 
 networkPolicy:
   enabled: true
-
-  # Opt-in: allow backend to egress to the public internet on these ports.
-  backendEgressWeb:
-    enabled: false
-    # RFC1918 + RFC6598 (adjust if your cluster uses different ranges)
-    exceptCidrs:
-      - 10.0.0.0/8
-      - 172.16.0.0/12
-      - 192.168.0.0/16
-      - 100.64.0.0/10
-    ports: [80, 443]
 
 // charts/postgres/.helmignore
 .git/
@@ -1280,6 +1431,52 @@ spec:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 
+// clusters/dev/apps/backend-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-backend-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: charts/backend
+    helm:
+      valueFiles:
+        - ../../values/backend/dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+// clusters/dev/apps/frontent-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-frontend-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: charts/frontend
+    helm:
+      valueFiles:
+        - ../../values/frontend/dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
 // clusters/dev/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -1339,6 +1536,52 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true ]
+
+// clusters/prod/apps/backend-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-backend-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: charts/backend
+    helm:
+      valueFiles:
+        - ../../values/backend/prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+// clusters/prod/apps/frontend-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-frontend-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: charts/frontend
+    helm:
+      valueFiles:
+        - ../../values/frontend/prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
 
 // clusters/prod/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1415,21 +1658,14 @@ DB_URI={{DB_URI}}
 backend:
   app: { name: backend, type: backend }
   fullnameOverride: backend
-
   replicaCount: 2
-
   image:
     repository: elipavlov/newsapp-backend
     tag: dev-local
-
   service:
     type: ClusterIP
     port: 8080
-
-  # Run BE only on application workers
   nodeSelector: { role: application }
-
-  # Spread BE pods across node1+2 by component label
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -1441,8 +1677,6 @@ backend:
                   operator: In
                   values: ["backend"]
             topologyKey: kubernetes.io/hostname
-
-  # Modest resources
   resources:
     requests:
       cpu: 100m
@@ -1450,13 +1684,11 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
-
   env:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
     secretRef: backend-db-connection
 
-# In-cluster DB for dev (pinned to DB node, using Local PV backed by OCI block volume)
 db:
   enabled: true
   service:
@@ -1464,25 +1696,20 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_dev
-
-  # Pin to DB worker and tolerate its taint
   nodeSelector: { role: database }
   tolerations:
     - key: "role"
       operator: "Equal"
       value: "database"
       effect: "NoSchedule"
-
   existingSecret:
     name: postgres-credentials
     userKey: POSTGRES_USER
     passwordKey: POSTGRES_PASSWORD
-
   storage:
     size: 10Gi
     storageClassName: "local-db-dev"
 
-# Opt-in: allow backend to reach internet (80/443) while keeping cluster ranges excluded
 networkPolicy:
   backendEgressWeb:
     enabled: true
@@ -1498,9 +1725,7 @@ backend:
   service:
     type: ClusterIP
     port: 8080
-  # Run BE only on application workers
   nodeSelector: {role: application}
-  # Spread BE pods across node1+2 by component label
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -1512,7 +1737,6 @@ backend:
                   operator: In
                   values: ["backend"]
             topologyKey: kubernetes.io/hostname
-  # Modest resources
   resources:
     requests:
       cpu: 100m
@@ -1524,7 +1748,7 @@ backend:
     plain:
       DB_ENGINE_TYPE: "POSTGRES"
     secretRef: backend-db-connection
-# In-cluster DB for prod (pinned to DB node, using Local PV backed by OCI block volume)
+
 db:
   enabled: true
   service:
@@ -1532,7 +1756,6 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_prod
-  # Pin to DB worker and tolerate its taint
   nodeSelector: {role: database}
   tolerations:
     - key: "role"
@@ -1550,19 +1773,14 @@ db:
 // values/frontend/dev.yaml
 frontend:
   app: { name: frontend, type: frontend, syncWave: "2" }
-
   replicaCount: 2
-
   image:
     repository: elipavlov/newsapp-frontend
     tag: dev-local
-
   service:
     type: ClusterIP
     port: 8080
-
   nodeSelector: { role: application }
-
   affinity:
     podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
@@ -1574,7 +1792,6 @@ frontend:
                   operator: In
                   values: ["frontend"]
             topologyKey: kubernetes.io/hostname
-
   resources:
     requests:
       cpu: 50m
@@ -1582,18 +1799,15 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
-
   env:
     plain:
       VITE_SERVER_URL: "/api"
       VITE_NEWS_INTERVAL_IN_MIN: "5"
       BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
       BACKEND_SERVICE_PORT: "8080"
-
   ingress:
     enabled: true
     className: nginx
-    # <-- NEW: have cert-manager issue a self-signed cert automatically
     certManagerClusterIssuer: letsencrypt-staging
     hosts:
       - host: newsapp-dev.weblightenment.com
@@ -1603,10 +1817,6 @@ frontend:
     tls:
       - hosts: ["newsapp-dev.weblightenment.com"]
         secretName: newsapp-dev-selfsigned-tls
-        
-  pathIngress:
-    enabled: true
-    path: /dev
 
 // values/frontend/prod.yaml
 frontend:
@@ -1646,7 +1856,6 @@ frontend:
   ingress:
     enabled: true
     className: nginx
-    # <-- NEW: have cert-manager issue a self-signed cert automatically
     certManagerClusterIssuer: letsencrypt-dns01-cloudflare
     hosts:
       - host: newsapp.weblightenment.com
@@ -1656,7 +1865,3 @@ frontend:
     tls:
       - hosts: ["newsapp.weblightenment.com"]
         secretName: newsapp-selfsigned-tls
-
-pathIngress:
-  enabled: true
-  path: /app

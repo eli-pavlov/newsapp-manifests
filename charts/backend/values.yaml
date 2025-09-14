@@ -1,0 +1,46 @@
+app:
+  name: backend
+  syncWave: "1"
+
+image:
+  repository: ""
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+podSecurityContext: {}
+containerSecurityContext: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+imagePullSecrets: []
+
+env:
+  plain: {}
+  secretRef: ""
+  configRef: ""
+
+hpa:
+  enabled: false
+
+networkPolicy:
+  enabled: true
+  backendEgressWeb:
+    enabled: false
+    exceptCidrs: []
+    ports: [80,443]

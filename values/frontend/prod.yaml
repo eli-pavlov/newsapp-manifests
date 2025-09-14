@@ -35,7 +35,6 @@ frontend:
   ingress:
     enabled: true
     className: nginx
-    # <-- NEW: have cert-manager issue a self-signed cert automatically
     certManagerClusterIssuer: letsencrypt-dns01-cloudflare
     hosts:
       - host: newsapp.weblightenment.com
@@ -45,7 +44,3 @@ frontend:
     tls:
       - hosts: ["newsapp.weblightenment.com"]
         secretName: newsapp-selfsigned-tls
-
-pathIngress:
-  enabled: true
-  path: /app
