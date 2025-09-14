@@ -1190,6 +1190,9 @@ spec:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
 
+// clusters/prod/apps/argocd-ingress.yaml
+
+
 // clusters/prod/apps/backend-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1260,6 +1263,44 @@ spec:
     automated:
       prune: true
       selfHeal: true
+
+// clusters/prod/apps/ingress-nginx-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 5.8.0
+    helm:
+      releaseName: ingress-nginx
+      values: |
+        controller:
+          kind: DaemonSet
+          ingressClassByName: true
+          ingressClassResource:
+            name: nginx
+          service:
+            type: NodePort
+            nodePorts:
+              http: 30080
+              https: 30443
+            externalTrafficPolicy: Local
+          nodeSelector:
+            role: application
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 
 // clusters/prod/apps/postgres-app.yaml
 apiVersion: argoproj.io/v1alpha1
