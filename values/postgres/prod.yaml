@@ -1,0 +1,32 @@
+# values/postgres/prod.yaml
+service:
+  name: postgresql-prod
+  port: 5432
+  type: ClusterIP
+
+storage:
+  size: 20Gi
+  storageClassName: "local-db-prod"
+
+dbName: newsdb_prod
+
+existingSecret:
+  name: postgres-credentials
+  userKey: POSTGRES_USER
+  passwordKey: POSTGRES_PASSWORD
+
+nodeSelector:
+  role: database
+
+tolerations:
+  - key: "role"
+    operator: "Equal"
+    value: "database"
+    effect: "NoSchedule"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    memory: 1Gi

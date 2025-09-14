@@ -1,0 +1,32 @@
+# values/postgres/dev.yaml
+service:
+  name: postgresql-dev
+  port: 5432
+  type: ClusterIP
+
+storage:
+  size: 10Gi
+  storageClassName: "local-db-dev"
+
+dbName: newsdb_dev
+
+existingSecret:
+  name: postgres-credentials
+  userKey: POSTGRES_USER
+  passwordKey: POSTGRES_PASSWORD
+
+nodeSelector:
+  role: database
+
+tolerations:
+  - key: "role"
+    operator: "Equal"
+    value: "database"
+    effect: "NoSchedule"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
