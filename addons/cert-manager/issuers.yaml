@@ -6,7 +6,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   acme:
-    # Use staging for testing; swap to production URL for live certs
     # production: https://acme-v02.api.letsencrypt.org/directory
     server: https://acme-v02.api.letsencrypt.org/directory
     email: contact@weblightenment.com
