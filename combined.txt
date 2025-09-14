@@ -996,14 +996,14 @@ nodeSelector: {}
 tolerations: []
 
 // clusters/addons/cert-manager.yaml
-# This is now the single source of truth for the cert-manager application.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: cert-manager
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
-  # Assign it to the default project, as it's a cluster-wide utility
   project: default
   destination:
     server: https://kubernetes.default.svc
@@ -1023,37 +1023,16 @@ spec:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 
-// clusters/dev/apps/addons.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-addons-dev
-  namespace: argocd
-spec:
-  project: newsapp-dev
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: development    # namespace for namespaced addon manifests; cluster-scoped resources will be applied anyway
-  source:
-    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-    targetRevision: main
-    path: addons
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-
 // clusters/dev/apps/backend-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: newsapp-backend-dev
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: default
+  project: newsapp-dev
   source:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main
@@ -1069,14 +1048,19 @@ spec:
       prune: true
       selfHeal: true
 
+// clusters/dev/apps/db-pv.yaml
+
+
 // clusters/dev/apps/frontend-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: newsapp-frontend-dev
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: default
+  project: newsapp-dev
   source:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main
@@ -1096,15 +1080,15 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: newsapp-dev   # newsapp-prod in prod cluster file
+  name: newsapp-dev
   namespace: argocd
 spec:
-  description: "Environment project for newsapp (dev)"
+  description: "Development project for newsapp"
   sourceRepos:
-    - 'https://github.com/eli-pavlov/newsapp-manifests.git'
-    - 'https://charts.jetstack.io'   # only if you're letting ArgoCD fetch cert-manager from helm
+    - https://github.com/eli-pavlov/newsapp-manifests.git
+    - https://charts.jetstack.io   # optional, remove if you don't want cert-manager fetched by ArgoCD
   destinations:
-    - namespace: development        # or 'default' in prod file
+    - namespace: development
       server: https://kubernetes.default.svc
     - namespace: cert-manager
       server: https://kubernetes.default.svc
@@ -1117,21 +1101,21 @@ spec:
     - group: '*'
       kind: '*'
 
-// clusters/prod/apps/addons.yaml
+// clusters/dev/apps/stack.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: newsapp-addons-prod
+  name: newsapp-dev-stack
   namespace: argocd
 spec:
-  project: newsapp-prod
+  project: newsapp-dev
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: development
   source:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main
-    path: addons
+    path: clusters/dev/apps
   syncPolicy:
     automated:
       prune: true
@@ -1162,6 +1146,31 @@ spec:
     automated:
       prune: true
       selfHeal: true
+
+// clusters/prod/apps/db-pv.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-db-pv-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: addons/db-local-pv/prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
 
 // clusters/prod/apps/frontend-app.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1210,6 +1219,29 @@ spec:
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
+
+// clusters/prod/apps/stack.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-prod-stack
+  namespace: argocd
+spec:
+  project: newsapp-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: clusters/prod/apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
 
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}
