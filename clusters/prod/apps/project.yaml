@@ -4,18 +4,16 @@ metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
-  description: Production project for newsapp
+  description: "Environment project for newsapp (dev)"
   sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-    - https://charts.jetstack.io
+    - 'https://github.com/eli-pavlov/newsapp-manifests.git'
+    - 'https://charts.jetstack.io'   #letting ArgoCD fetch cert-manager from helm
   destinations:
     - namespace: default
       server: https://kubernetes.default.svc
     - namespace: cert-manager
       server: https://kubernetes.default.svc
     - namespace: argocd
-      server: https://kubernetes.default.svc
-    - namespace: kube-system
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'

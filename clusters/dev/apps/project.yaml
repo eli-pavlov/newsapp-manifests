@@ -1,21 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: newsapp-dev
+  name: newsapp-dev   # newsapp-prod in prod cluster file
   namespace: argocd
 spec:
-  description: Development project for newsapp
+  description: "Environment project for newsapp (dev)"
   sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-    - https://charts.jetstack.io
+    - 'https://github.com/eli-pavlov/newsapp-manifests.git'
+    - 'https://charts.jetstack.io'   # only if you're letting ArgoCD fetch cert-manager from helm
   destinations:
-    - namespace: development
+    - namespace: development        # or 'default' in prod file
       server: https://kubernetes.default.svc
     - namespace: cert-manager
       server: https://kubernetes.default.svc
     - namespace: argocd
-      server: https://kubernetes.default.svc
-    - namespace: kube-system
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
