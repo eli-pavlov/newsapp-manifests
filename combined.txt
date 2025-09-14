@@ -709,15 +709,15 @@ appVersion: "1.0.0"
 dependencies:
   - name: app
     alias: backend
-    repository: "https://<GITHUB_USER>.github.io/<MANIFESTS_REPO>"
+    repository: "https://eli-pavlov.github.io/newsapp-manifests"
     version: "0.1.0"
   - name: app
     alias: frontend
-    repository: "file://../app"
+    repository: "https://eli-pavlov.github.io/newsapp-manifests"
     version: "0.1.0"
   - name: postgres
     alias: db
-    repository: "https://<GITHUB_USER>.github.io/<MANIFESTS_REPO>"
+    repository: "https://eli-pavlov.github.io/newsapp-manifests"
     version: "0.1.0"
     condition: db.enabled
 
