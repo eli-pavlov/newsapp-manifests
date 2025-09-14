@@ -4,6 +4,7 @@ metadata:
   name: db-pv-dev
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    weblightenment.io/owner-uid: "999"
 spec:
   capacity:
     storage: 10Gi

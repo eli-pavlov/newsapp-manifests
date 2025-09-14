@@ -32,11 +32,9 @@ spec:
 
       terminationGracePeriodSeconds: 60
 
-      {{- /* NEW: allow pinning to the DB node and tolerating its taint */ -}}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml . | indent 8 }}
-      {{- end }}
+      {{- /* NEW: allow pinning to the DB node (via nodeAffinity above) and tolerating its taint.
+           NOTE: nodeAffinity is used explicitly above to require nodes with label role=database.
+           Keep per-env tolerations available via values files. */ -}}
       {{- with .Values.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
