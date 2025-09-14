@@ -20,6 +20,16 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "postgres.fullname" . }}
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: role
+                    operator: In
+                    values:
+                      - database
+
       terminationGracePeriodSeconds: 60
 
       {{- /* NEW: allow pinning to the DB node and tolerating its taint */ -}}

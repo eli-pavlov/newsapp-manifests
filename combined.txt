@@ -1102,6 +1102,9 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
 
 // clusters/dev/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1222,7 +1225,7 @@ spec:
       prune: true
       selfHeal: true
 
-// clusters/prod/apps/postgres.yaml
+// clusters/prod/apps/postgres-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -1246,6 +1249,9 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
 
 // clusters/prod/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
