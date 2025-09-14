@@ -972,6 +972,34 @@ dbName: appdb
 nodeSelector: {}
 tolerations: []
 
+// clusters/addons/cert-manager.yaml
+# This is now the single source of truth for the cert-manager application.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  # Assign it to the default project, as it's a cluster-wide utility
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  sources:
+    - repoURL: https://charts.jetstack.io
+      chart: cert-manager
+      targetRevision: v1.14.4
+      helm:
+        releaseName: cert-manager
+        valuesObject:
+          installCRDs: true
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      path: addons/cert-manager
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
+
 // clusters/dev/apps/project.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -1000,31 +1028,6 @@ spec:
       kind: '*'
 
 // clusters/dev/apps/stack.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: cert-manager
-  namespace: argocd
-spec:
-  project: newsapp-dev
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: cert-manager
-  sources:
-    - repoURL: https://charts.jetstack.io
-      chart: cert-manager
-      targetRevision: v1.14.4
-      helm:
-        releaseName: cert-manager
-        valuesObject:
-          installCRDs: true
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: addons/cert-manager
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -1085,31 +1088,6 @@ spec:
       kind: '*'
 
 // clusters/prod/apps/stack.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: cert-manager
-  namespace: argocd
-spec:
-  project: newsapp-prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: cert-manager
-  sources:
-    - repoURL: https://charts.jetstack.io
-      chart: cert-manager
-      targetRevision: v1.14.4
-      helm:
-        releaseName: cert-manager
-        valuesObject:
-          installCRDs: true
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: addons/cert-manager
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [CreateNamespace=true, ApplyOutOfSyncOnly=true]
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
