@@ -1,37 +1,50 @@
-backend:
-  app: { name: backend, type: backend }
-  fullnameOverride: backend
-  replicaCount: 2
-  image:
-    repository: elipavlov/newsapp-backend
-    tag: dev-local
-  service:
-    type: ClusterIP
-    port: 8080
-  nodeSelector: { role: application }
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          podAffinityTerm:
-            labelSelector:
-              matchExpressions:
-                - key: app.kubernetes.io/component
-                  operator: In
-                  values: ["backend"]
-            topologyKey: kubernetes.io/hostname
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  env:
-    plain:
-      DB_ENGINE_TYPE: "POSTGRES"
-    secretRef: backend-db-connection
+app:
+  name: backend
+  syncWave: "1"
+fullnameOverride: backend
+replicaCount: 2
 
+image:
+  repository: elipavlov/newsapp-backend
+  tag: dev-local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nodeSelector:
+  role: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["backend"]
+          topologyKey: kubernetes.io/hostname
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  plain:
+    DB_ENGINE_TYPE: "POSTGRES"
+  secretRef: backend-db-connection
+
+hpa:
+  enabled: false
+
+# db block is not used by charts/backend templates, but keep it if you reference it elsewhere
 db:
   enabled: true
   service:

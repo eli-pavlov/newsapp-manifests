@@ -4,7 +4,7 @@ metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
-  description: "Environment project for newsapp (dev)"
+  description: "Environment project for newsapp"
   sourceRepos:
     - 'https://github.com/eli-pavlov/newsapp-manifests.git'
     - 'https://charts.jetstack.io'   #letting ArgoCD fetch cert-manager from helm
