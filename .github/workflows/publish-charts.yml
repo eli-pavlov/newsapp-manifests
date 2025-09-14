@@ -80,7 +80,7 @@ jobs:
           for CH in "${CHARTS_TO_PUBLISH[@]}"; do
             if [ -d "${CH}" ]; then
               base=$(basename "${CH}")
-              version=$(yq -r '.version' "${CH}/Chart.yaml")
+              version=$(/usr/local/bin/yq -r '.version' "${CH}/Chart.yaml")
               newver="${version}-dev.${SHORT}"
               echo "Packaging ${CH} -> version ${newver}"
               helm package "${CH}" -d $OUT_DIR --version "${newver}"
@@ -100,8 +100,6 @@ jobs:
             echo "packed_list=${packed_list_trimmed}" >> "$GITHUB_OUTPUT"
           fi
 
-
-
       - name: Create/update Helm repo index (merge with existing)
         if: steps.package.outputs.packed == 'true'
         run: |
@@ -119,7 +117,6 @@ jobs:
             echo "No existing index found; creating new index"
             helm repo index $OUT_DIR --url "${INDEX_URL}"
           fi
-
 
       - name: Update umbrella Chart.yaml dependency versions (optional)
         if: steps.package.outputs.packed == 'true'
@@ -140,9 +137,10 @@ jobs:
             name=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\1/')
             version=$(echo "$fn" | sed -E 's/(.+)-([0-9A-Za-z\.\-\+]+)\.tgz/\2/')
             echo "Setting dependency ${name} -> version ${version}"
-            yq -i --arg n "$name" --arg v "$version" '
-              (.dependencies[] | select(.name == $n) .version) = $v
-            ' charts/newsapp/Chart.yaml
+
+            # Use the explicitly-installed yq and avoid --arg to support environments
+            # that have a different yq binary on PATH.
+            /usr/local/bin/yq -i '(.dependencies[] | select(.name == "'"${name}"'") .version) = "'"${version}"'"' charts/newsapp/Chart.yaml
           done
 
           # Commit the bump back to repo (consider opening a PR instead of pushing to main)
@@ -156,7 +154,6 @@ jobs:
             # WARNING: pushing to main will re-trigger workflow on push — consider creating a branch & a PR instead.
             git push origin HEAD:main
           fi
-
 
       - name: Publish to gh-pages (push out/ to gh-pages)
         if: steps.package.outputs.packed == 'true'
