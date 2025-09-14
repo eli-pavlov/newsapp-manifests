@@ -867,11 +867,28 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
 
-      {{- /* Pod-level securityContext injected from chart values (e.g. fsGroup) */ -}}
+      {{- /* Pod-level securityContext injected from chart values (e.g. fsGroup, runAsUser) */ -}}
       {{- with .Values.securityContext }}
       securityContext:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
+      {{- /* Optional init container to ensure the PV directory has correct owner/group (fixes permission denied on mkdir) */ -}}
+      {{- if .Values.initFixPermissions.enabled }}
+      initContainers:
+        - name: fix-permissions
+          image: {{ .Values.initFixPermissions.image | quote }}
+          command:
+            - sh
+            - -c
+            - "chown -R {{ .Values.initFixPermissions.ownerUid }}:{{ .Values.initFixPermissions.ownerGid }} {{ .Values.initFixPermissions.chownPath }} || true"
+          securityContext:
+            runAsUser: {{ .Values.initFixPermissions.runAsUser }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.initFixPermissions.chownPath }}
+      {{- end }}
+
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -970,7 +987,17 @@ resources:
 
 # Pod-level security context (helps with volume permissions)
 securityContext:
+  runAsUser: 999
   fsGroup: 999
+
+# Init-container helper to fix ownership of mounted PV (enabled by default)
+initFixPermissions:
+  enabled: true
+  image: busybox:1.36
+  runAsUser: 0     # run init container as root so chown can change host dir perms
+  ownerUid: 999
+  ownerGid: 999
+  chownPath: /var/lib/postgresql/data
 
 # Use credentials from an existing Secret created by bootstrap:
 existingSecret:
@@ -1327,7 +1354,7 @@ replicaCount: 2
 
 image:
   repository: elipavlov/newsapp-backend
-  tag: dev-local
+  tag: latest-66766bc     # <- updated to an image that exists on Docker Hub
   pullPolicy: IfNotPresent
 
 service:
@@ -1365,7 +1392,6 @@ env:
 hpa:
   enabled: false
 
-# db block is not used by charts/backend templates, but keep it if you reference it elsewhere
 db:
   enabled: true
   service:
@@ -1392,16 +1418,15 @@ networkPolicy:
     enabled: true
 
 // values/backend/prod.yaml
-# values/backend/prod.yaml (top-level keys expected by charts/backend)
 app:
-  name: backend
-  syncWave: "1"
-fullnameOverride: backend
+  name: frontend
+  syncWave: "2"
+
 replicaCount: 2
 
 image:
-  repository: elipavlov/newsapp-backend
-  tag: latest-66766bc
+  repository: elipavlov/newsapp-frontend
+  tag: latest-ec40111   # <- updated to an image that exists on Docker Hub
   pullPolicy: IfNotPresent
 
 service:
@@ -1420,49 +1445,39 @@ affinity:
             matchExpressions:
               - key: app.kubernetes.io/component
                 operator: In
-                values: ["backend"]
+                values: ["frontend"]
           topologyKey: kubernetes.io/hostname
 
 resources:
   requests:
-    cpu: 100m
-    memory: 256Mi
+    cpu: 50m
+    memory: 64Mi
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 200m
+    memory: 128Mi
 
 env:
   plain:
-    DB_ENGINE_TYPE: "POSTGRES"
-  secretRef: backend-db-connection
+    VITE_SERVER_URL: "/api"
+    VITE_NEWS_INTERVAL_IN_MIN: "5"
+    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
+    BACKEND_SERVICE_PORT: "8080"
+
+ingress:
+  enabled: true
+  className: nginx
+  certManagerClusterIssuer: letsencrypt-staging
+  hosts:
+    - host: newsapp-dev.weblightenment.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts: ["newsapp-dev.weblightenment.com"]
+      secretName: newsapp-dev-selfsigned-tls
 
 hpa:
   enabled: false
-
-db:
-  enabled: true
-  service:
-    name: postgresql-prod
-    port: 5432
-    type: ClusterIP
-  dbName: newsdb_prod
-  nodeSelector: { role: database }
-  tolerations:
-    - key: "role"
-      operator: "Equal"
-      value: "database"
-      effect: "NoSchedule"
-  existingSecret:
-    name: postgres-credentials
-    userKey: POSTGRES_USER
-    passwordKey: POSTGRES_PASSWORD
-  storage:
-    size: 20Gi
-    storageClassName: "local-db-prod"
-
-networkPolicy:
-  backendEgressWeb:
-    enabled: true
 
 // values/frontend/dev.yaml
 app:
@@ -1581,8 +1596,8 @@ hpa:
   enabled: false
 frontend:
   image:
-    repository: elipavlov/newsapp-backend
-    tag: latest-66766bc
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111
   env:
     plain:
       VITE_SERVER_URL: /api
