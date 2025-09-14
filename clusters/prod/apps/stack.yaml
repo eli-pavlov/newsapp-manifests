@@ -26,24 +26,6 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-ingress # <-- CORRECTED FROM argocd-addons
-  namespace: argocd
-spec:
-  project: newsapp-prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
-  sources:
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: addons/argocd
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [CreateNamespace=true, ApplyOutOfSyncOnly=true]
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
@@ -52,6 +34,11 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
   sources:
+    # Source for values files is now first
+    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+      targetRevision: main
+      ref: values
+    # Source for the Helm chart is now second
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: charts/newsapp
@@ -60,9 +47,7 @@ spec:
         valueFiles:
           - $values/values/backend/prod.yaml
           - $values/values/frontend/prod.yaml
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      ref: values
+    # Source for plain Kubernetes manifests
     - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
       targetRevision: main
       path: addons/db-local-pv/prod
