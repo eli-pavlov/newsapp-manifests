@@ -3,8 +3,10 @@ kind: Application
 metadata:
   name: newsapp-backend-dev
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: default
+  project: newsapp-dev
   source:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main

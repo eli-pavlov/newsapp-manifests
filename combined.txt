@@ -180,367 +180,6 @@ metadata:
 provisioner: kubernetes.io/no-provisioner
 volumeBindingMode: WaitForFirstConsumer
 
-// charts/app/.helmignore
-.git/
-.github/
-.vscode/
-*.swp
-*.bak
-*.tmp
-
-// charts/app/Chart.yaml
-apiVersion: v2
-name: app
-description: Generic deployment chart for simple web apps (backend/frontend)
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
-
-// charts/app/templates/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    {{- /* include name, instance, and component so anti-affinity can target the component */ -}}
-    {{- include "app.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: {{ include "app.name" . }}
-      app.kubernetes.io/component: {{ include "app.component" . }}
-  template:
-    metadata:
-      labels:
-        {{- include "app.labels" . | nindent 8 }}
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      containers:
-        - name: {{ include "app.name" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml . | indent 12 }}
-          {{- end }}
-          ports:
-            - containerPort: {{ .Values.service.port }}
-              name: http
-              {{- if .Values.service.hostPort }}
-              hostPort: {{ .Values.service.hostPort }}
-              {{- end }}
-          env:
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            {{- range $k, $v := .Values.env.plain }}
-            - name: {{ $k }}
-              value: "{{ $v }}"
-            {{- end }}
-          {{- if or .Values.env.secretRef .Values.env.configRef }}
-          envFrom:
-            {{- if .Values.env.configRef }}
-            - configMapRef: { name: {{ .Values.env.configRef }} }
-            {{- end }}
-            {{- if .Values.env.secretRef }}
-            - secretRef: { name: {{ .Values.env.secretRef }} }
-            {{- end }}
-          {{- end }}
-          resources:
-{{ toYaml .Values.resources | indent 12 }}
-
-          {{- with .Values.probes }}
-          {{- if .readiness }}
-          readinessProbe:
-            {{- if eq (.readiness.type | default "tcp") "http" }}
-            httpGet:
-              path: {{ .readiness.path | default "/" | quote }}
-              port: {{ $.Values.service.port }}
-              scheme: {{ .readiness.scheme | default "HTTP" }}
-            {{- else }}
-            tcpSocket:
-              port: {{ $.Values.service.port }}
-            {{- end }}
-            initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
-            periodSeconds: {{ .readiness.periodSeconds | default 10 }}
-            timeoutSeconds: {{ .readiness.timeoutSeconds | default 2 }}
-            successThreshold: {{ .readiness.successThreshold | default 1 }}
-            failureThreshold: {{ .readiness.failureThreshold | default 3 }}
-          {{- end }}
-
-          {{- if .liveness }}
-          livenessProbe:
-            {{- if eq (.liveness.type | default "tcp") "http" }}
-            httpGet:
-              path: {{ .liveness.path | default "/" | quote }}
-              port: {{ $.Values.service.port }}
-              scheme: {{ .liveness.scheme | default "HTTP" }}
-            {{- else }}
-            tcpSocket:
-              port: {{ $.Values.service.port }}
-            {{- end }}
-            initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
-            periodSeconds: {{ .liveness.periodSeconds | default 10 }}
-            timeoutSeconds: {{ .liveness.timeoutSeconds | default 2 }}
-            successThreshold: {{ .liveness.successThreshold | default 1 }}
-            failureThreshold: {{ .liveness.failureThreshold | default 6 }}
-          {{- end }}
-
-          {{- if and .startup .startup.enabled }}
-          startupProbe:
-            {{- if eq (.startup.type | default "tcp") "http" }}
-            httpGet:
-              path: {{ .startup.path | default "/" | quote }}
-              port: {{ $.Values.service.port }}
-              scheme: {{ .startup.scheme | default "HTTP" }}
-            {{- else }}
-            tcpSocket:
-              port: {{ $.Values.service.port }}
-            {{- end }}
-            periodSeconds: {{ .startup.periodSeconds | default 5 }}
-            failureThreshold: {{ .startup.failureThreshold | default 30 }}
-          {{- end }}
-          {{- end }}
-
-// charts/app/templates/hpa.yaml
-{{- /*
-Defensive HPA template:
-- Works even if `hpa:` block is not present in values.
-- Uses defaults from charts/app/values.yaml, but still guards against nil.
-*/ -}}
-{{- $hpa := .Values.hpa | default dict -}}
-{{- if and ($hpa.enabled) }}
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: {{ include "app.fullname" . }}
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: {{ include "app.fullname" . }}
-  minReplicas: {{ default 1 $hpa.minReplicas }}
-  maxReplicas: {{ default 3 $hpa.maxReplicas }}
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: {{ default 80 $hpa.targetCPUUtilizationPercentage }}
-    {{- if $hpa.targetMemoryUtilizationPercentage }}
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
-    {{- end }}
-{{- end }}
-
-// charts/app/templates/ingress.yaml
-{{- $root := . -}}
-{{- if and (hasKey $root.Values "ingress") (not (empty $root.Values.ingress)) $root.Values.ingress.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ include "app.fullname" $root }}
-  annotations:
-    {{- if $root.Values.ingress.annotations }}
-{{ toYaml $root.Values.ingress.annotations | nindent 4 }}
-    {{- end }}
-    {{- if $root.Values.ingress.certManagerClusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ $root.Values.ingress.certManagerClusterIssuer | quote }}
-    {{- end }}
-spec:
-  {{- with $root.Values.ingress.className }}
-  ingressClassName: {{ . | quote }}
-  {{- end }}
-  rules:
-    {{- range $host := $root.Values.ingress.hosts }}
-    - host: {{ $host.host | quote }}
-      http:
-        paths:
-          {{- range $p := $host.paths }}
-          - path: {{ $p.path | quote }}
-            pathType: {{ $p.pathType | default "Prefix" | quote }}
-            backend:
-              service:
-                name: {{ include "app.fullname" $root }}
-                port:
-                  number: {{ $root.Values.service.port }}
-          {{- end }}
-    {{- end }}
-  {{- with $root.Values.ingress.tls }}
-  tls:
-{{ toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
-
-// charts/app/templates/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "app.fullname" . }}
-  labels:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-  annotations:
-    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "1" }}"
-spec:
-  type: {{ .Values.service.type }}
-  selector:
-    app.kubernetes.io/name: {{ include "app.name" . }}
-    app.kubernetes.io/component: {{ include "app.component" . }}
-  ports:
-    - name: http
-      port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
-      nodePort: {{ .Values.service.nodePort }}
-      {{- end }}
-
-// charts/app/templates/_helpers.tpl
-{{- define "app.name" -}}
-{{- if .Values.nameOverride }}{{- .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else }}{{- .Chart.Name | trunc 63 | trimSuffix "-" -}}{{- end -}}
-{{- end }}
-
-{{- define "app.fullname" -}}
-{{- if .Values.fullnameOverride }}{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- $name := include "app.name" . -}}
-{{- if contains $name .Release.Name }}{{ .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}{{- end -}}
-{{- end -}}
-{{- end }}
-
-{{- define "app.component" -}}
-{{- if .Values.app.name }}{{ .Values.app.name | trunc 63 | trimSuffix "-" }}{{ else }}{{ .Chart.Name | trunc 63 | trimSuffix "-" }}{{ end -}}
-{{- end }}
-
-{{- define "app.labels" -}}
-app.kubernetes.io/name: {{ include "app.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: {{ include "app.component" . }}
-{{- end }}
-
-{{- define "app.selectorLabels" -}}
-app.kubernetes.io/component: {{ include "app.component" . }}
-{{- end }}
-
-// charts/app/values.yaml
-app:
-  name: app
-  type: backend # or "frontend"
-  syncWave: "1"
-
-image:
-  repository: ""
-  tag: "latest"
-  pullPolicy: IfNotPresent
-
-replicaCount: 1
-
-service:
-  type: ClusterIP
-  port: 8080
-  nodePort: null
-  hostPort: null
-
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 101
-  runAsGroup: 101
-  fsGroup: 101
-
-containerSecurityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-
-# Default resources so HPA (if enabled) has CPU requests to target.
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    memory: 256Mi
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
-
-imagePullSecrets: []
-
-env:
-  plain: {}
-  secretRef: ""
-  configRef: ""
-
-hpa:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  # Easiest TLS wiring—set to "letsencrypt-staging" or "letsencrypt-prod"
-  certManagerClusterIssuer: ""
-  hosts: []
-  tls: []
-
-probes:
-  readiness:
-    type: tcp        # "tcp" or "http"
-    # path: /healthz # only used when type=http
-    initialDelaySeconds: 5
-    periodSeconds: 10
-    timeoutSeconds: 2
-    successThreshold: 1
-    failureThreshold: 3
-
-  liveness:
-    type: tcp
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 2
-    successThreshold: 1
-    failureThreshold: 6
-
-  startup:
-    enabled: true
-    type: tcp
-    periodSeconds: 5
-    failureThreshold: 30
-
 // charts/backend/Chart.yaml
 apiVersion: v2
 name: backend
@@ -672,54 +311,7 @@ spec:
       app.kubernetes.io/component: backend
   policyTypes: ["Egress"]
   egress:
-    - to:a{{- if .Values.networkPolicy.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: be-ingress-from-fe
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: backend
-  policyTypes: ["Ingress"]
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/component: frontend
-      ports:
-        - protocol: TCP
-          port: {{ .Values.service.port }}
-
-{{- if .Values.networkPolicy.backendEgressWeb.enabled }}
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: be-egress-web
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: backend
-  policyTypes: ["Egress"]
-  egress:
     - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            {{- if .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
-            except:
-            {{- range $cidr := .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
-              - {{ $cidr | quote }}
-            {{- end }}
-            {{- end }}
-      ports:
-      {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
-        - protocol: TCP
-          port: {{ $p }}
-      {{- end }}
-{{- end }}
-{{- end }}
-
         - ipBlock:
             cidr: 0.0.0.0/0
             {{- if .Values.networkPolicy.backendEgressWeb.exceptCidrs }}
@@ -1431,6 +1023,29 @@ spec:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
 
+// clusters/dev/apps/addons.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-addons-dev
+  namespace: argocd
+spec:
+  project: newsapp-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development    # namespace for namespaced addon manifests; cluster-scoped resources will be applied anyway
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: addons
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+
 // clusters/dev/apps/backend-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1454,7 +1069,7 @@ spec:
       prune: true
       selfHeal: true
 
-// clusters/dev/apps/frontent-app.yaml
+// clusters/dev/apps/frontend-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -1481,21 +1096,19 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: newsapp-dev
+  name: newsapp-dev   # newsapp-prod in prod cluster file
   namespace: argocd
 spec:
-  description: Development project for newsapp
+  description: "Environment project for newsapp (dev)"
   sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-    - https://charts.jetstack.io
+    - 'https://github.com/eli-pavlov/newsapp-manifests.git'
+    - 'https://charts.jetstack.io'   # only if you're letting ArgoCD fetch cert-manager from helm
   destinations:
-    - namespace: development
+    - namespace: development        # or 'default' in prod file
       server: https://kubernetes.default.svc
     - namespace: cert-manager
       server: https://kubernetes.default.svc
     - namespace: argocd
-      server: https://kubernetes.default.svc
-    - namespace: kube-system
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
@@ -1504,38 +1117,28 @@ spec:
     - group: '*'
       kind: '*'
 
-// clusters/dev/apps/stack.yaml
+// clusters/prod/apps/addons.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: newsapp-dev
+  name: newsapp-addons-prod
   namespace: argocd
 spec:
-  project: newsapp-dev
+  project: newsapp-prod
   destination:
     server: https://kubernetes.default.svc
-    namespace: development
-  sources:
-    # Source for values files is now first
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      ref: values
-    # Source for the Helm chart is now second
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - $values/values/backend/dev.yaml
-          - $values/values/frontend/dev.yaml
-    # Source for plain Kubernetes manifests
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: addons/db-local-pv/dev
+    namespace: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: addons
   syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true, RespectIgnoreDifferences=true ]
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
 
 // clusters/prod/apps/backend-app.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1590,10 +1193,10 @@ metadata:
   name: newsapp-prod
   namespace: argocd
 spec:
-  description: Production project for newsapp
+  description: "Environment project for newsapp (dev)"
   sourceRepos:
-    - https://github.com/eli-pavlov/newsapp-manifests.git
-    - https://charts.jetstack.io
+    - 'https://github.com/eli-pavlov/newsapp-manifests.git'
+    - 'https://charts.jetstack.io'   #letting ArgoCD fetch cert-manager from helm
   destinations:
     - namespace: default
       server: https://kubernetes.default.svc
@@ -1601,50 +1204,12 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
-    - namespace: kube-system
-      server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
-
-// clusters/prod/apps/stack.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: newsapp-prod
-  namespace: argocd
-spec:
-  project: newsapp-prod
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  sources:
-    # Source for values files is now first
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      ref: values
-    # Source for the Helm chart is now second
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: charts/newsapp
-      helm:
-        releaseName: newsapp
-        valueFiles:
-          - $values/values/backend/prod.yaml
-          - $values/values/frontend/prod.yaml
-    # Source for plain Kubernetes manifests
-    - repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
-      targetRevision: main
-      path: addons/db-local-pv/prod
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions:
-      - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
-      - RespectIgnoreDifferences=true
 
 // needed_envs
 VITE_SERVER_URL= {{VITE_SERVER_URL}}

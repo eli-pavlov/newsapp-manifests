@@ -1,11 +1,11 @@
-# This is now the single source of truth for the cert-manager application.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: cert-manager
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
-  # Assign it to the default project, as it's a cluster-wide utility
   project: default
   destination:
     server: https://kubernetes.default.svc
