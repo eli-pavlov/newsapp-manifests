@@ -1157,7 +1157,7 @@ metadata:
   name: cert-manager-local
   namespace: argocd
   annotations:
-   argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default
   source:
@@ -1763,7 +1763,7 @@ ingress:
           pathType: Prefix
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
-      secretName: newsapp-tls
+      secretName: newsapp-dev-tls
 hpa:
   enabled: false
 
