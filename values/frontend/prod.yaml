@@ -52,8 +52,8 @@ hpa:
   enabled: false
 frontend:
   image:
-    repository: elipavlov/newsapp-backend
-    tag: latest-66766bc
+    repository: elipavlov/newsapp-frontend
+    tag: latest-ec40111
   env:
     plain:
       VITE_SERVER_URL: /api
