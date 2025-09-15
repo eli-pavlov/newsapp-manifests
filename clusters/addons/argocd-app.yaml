@@ -16,6 +16,17 @@ spec:
       values: |
         # Use 'server' block to configure the argocd-server component
         server:
+          ingress:
+            enabled: true
+            ingressClassName: "nginx"
+            hostname: "argocd.weblightenment.com"
+            annotations:
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+            tls:
+              - secretName: argocd-tls
+                hosts:
+                  - argocd.weblightenment.com
           # This adds the --insecure flag to the argocd-server deployment
           extraArgs:
             - --insecure
