@@ -1127,6 +1127,8 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/name: cert-manager
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
 spec:
   project: default
   source:
@@ -1154,6 +1156,8 @@ kind: Application
 metadata:
   name: cert-manager-local
   namespace: argocd
+  annotations:
+   argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default
   source:
@@ -1781,8 +1785,7 @@ ingress:
           pathType: Prefix
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
-      secretName: newsapp-dev-selfsigned-tls
-
+      secretName: newsapp-tls
 hpa:
   enabled: false
 
@@ -1836,7 +1839,7 @@ ingress:
           pathType: Prefix
   tls:
     - hosts: ["newsapp.weblightenment.com"]
-      secretName: newsapp-selfsigned-tls
+      secretName: newsapp-tls
 hpa:
   enabled: false
 frontend:
