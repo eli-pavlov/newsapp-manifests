@@ -39,7 +39,6 @@ env:
 ingress:
   enabled: true
   className: nginx
-  certManagerClusterIssuer: letsencrypt-dns01-cloudflare
   hosts:
     - host: newsapp.weblightenment.com
       paths:

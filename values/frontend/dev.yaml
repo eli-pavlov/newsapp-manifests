@@ -46,7 +46,6 @@ env:
 ingress:
   enabled: true
   className: nginx
-  certManagerClusterIssuer: letsencrypt-staging
   hosts:
     - host: newsapp-dev.weblightenment.com
       paths:
