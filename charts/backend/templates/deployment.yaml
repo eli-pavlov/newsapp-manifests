@@ -1,3 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "backend.fullname" . }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "backend.name" . }}
+      app.kubernetes.io/component: {{ include "backend.component" . }}
+  template:
+    metadata:
+      labels:
+        {{- include "backend.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "backend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -36,7 +75,7 @@
               scheme: {{ .readiness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ $.readiness.port | default $.Values.service.port }}
+              port: {{ .readiness.port | default $.Values.service.port }}
             {{- end }}
             initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
             periodSeconds: {{ .readiness.periodSeconds | default 10 }}
