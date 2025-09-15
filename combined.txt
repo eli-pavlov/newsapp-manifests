@@ -1165,14 +1165,12 @@ spec:
       - ApplyOutOfSyncOnly=true
 
 // clusters/prod/apps/argocd-ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
 metadata:
   name: argocd-server-ingress
   namespace: argocd
   annotations:
     kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"        # <- change here
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
@@ -1264,42 +1262,26 @@ spec:
       selfHeal: true
 
 // clusters/prod/apps/ingress-nginx-app.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: ingress-nginx
-  namespace: argocd
-spec:
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: ingress-nginx
-  source:
-    repoURL: https://kubernetes.github.io/ingress-nginx
-    chart: ingress-nginx
-    targetRevision: 4.13.2
-    helm:
-      releaseName: ingress-nginx
-      values: |
-        controller:
-          kind: DaemonSet
-          ingressClassByName: true
-          ingressClassResource:
-            name: nginx
-          service:
-            type: NodePort
-            nodePorts:
-              http: 30080
-              https: 30443
-            externalTrafficPolicy: Local
-          nodeSelector:
-            role: application
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+source:
+  repoURL: https://kubernetes.github.io/ingress-nginx
+  chart: ingress-nginx
+  targetRevision: 4.13.2
+  helm:
+    releaseName: ingress-nginx
+    values: |
+      controller:
+        kind: DaemonSet
+        ingressClassByName: true
+        ingressClassResource:
+          name: nginx
+        service:
+          type: NodePort
+          nodePorts:
+            http: 30080
+            https: 30443
+          externalTrafficPolicy: Local
+        nodeSelector:
+          role: application
 
 // clusters/prod/apps/postgres-app.yaml
 apiVersion: argoproj.io/v1alpha1
