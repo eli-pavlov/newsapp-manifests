@@ -50,13 +50,3 @@ ingress:
       secretName: newsapp-tls
 hpa:
   enabled: false
-frontend:
-  image:
-    repository: elipavlov/newsapp-backend
-    tag: latest-66766bc
-  env:
-    plain:
-      VITE_SERVER_URL: /api
-      VITE_NEWS_INTERVAL_IN_MIN: "5"
-      BACKEND_SERVICE_HOST: ""
-      BACKEND_SERVICE_PORT: ""
