@@ -4,7 +4,7 @@ app:
   syncWave: "2"
 
 image:
-  repository: ""
+  repository: elipavlov/newsapp-frontend
   tag: "latest"
   pullPolicy: IfNotPresent
 
@@ -48,7 +48,7 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
-  certManagerClusterIssuer: ""
+  certManagerClusterIssuer: ""   # set per-env (dev->letsencrypt-staging, prod->letsencrypt-dns01-cloudflare)
   hosts: []
   tls: []
 
