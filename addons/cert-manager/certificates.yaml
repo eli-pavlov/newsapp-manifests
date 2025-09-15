@@ -23,7 +23,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 spec:
-  secretName: newsapp-selfsigned-tls    # matches your ingress tls.secretName
+  secretName: newsapp-tls
   dnsNames:
     - newsapp.weblightenment.com
   issuerRef:
@@ -39,7 +39,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
 spec:
-  secretName: newsapp-dev-selfsigned-tls
+  secretName: newsapp-dev-tls
   dnsNames:
     - newsapp-dev.weblightenment.com
   issuerRef:

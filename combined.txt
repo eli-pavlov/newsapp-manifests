@@ -1119,6 +1119,58 @@ dbName: appdb
 nodeSelector: {}
 tolerations: []
 
+// clusters/addons/cert-manager-helm-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-helm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: cert-manager
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.14.4
+    helm:
+      releaseName: cert-manager
+      values: |
+        installCRDs: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+
+// clusters/addons/cert-manager-local.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-local
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: addons/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+
 // clusters/addons/cert-manager.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1146,6 +1198,9 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
+
+// clusters/addons/ingress-nginx-app.yaml
+
 
 // clusters/dev/apps/backend-app.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1777,8 +1832,8 @@ hpa:
   enabled: false
 frontend:
   image:
-    repository: elipavlov/newsapp-frontend
-    tag: latest-ec40111
+    repository: elipavlov/newsapp-backend
+    tag: latest-66766bc
   env:
     plain:
       VITE_SERVER_URL: /api

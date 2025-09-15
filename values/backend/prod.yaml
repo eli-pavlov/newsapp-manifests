@@ -7,7 +7,7 @@ replicaCount: 2
 
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-<actual-prod-tag>
+  tag: latest
   pullPolicy: IfNotPresent
 
 service:
