@@ -1,0 +1,28 @@
+# This secret registers your main Git repository with Argo CD
+apiVersion: v1
+kind: Secret
+metadata:
+  name: newsapp-manifests
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/eli-pavlov/newsapp-manifests.git
+---
+# This secret registers the Jetstack Helm repo for the cert-manager chart
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jetstack-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: jetstack
+  url: https://charts.jetstack.io
