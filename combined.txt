@@ -65,32 +65,6 @@ spec:
         - protocol: TCP
           port: 53
 
-// addons/cert-manager.yaml
-# clusters/addons/cert-manager.yaml
-# This is now the single source of truth for the cert-manager Helm release.
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: cert-manager
-  namespace: argocd
-spec:
-  # Assign it to the default project, as it's a cluster-wide utility
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: cert-manager
-  sources:
-    - repoURL: https://charts.jetstack.io
-      chart: cert-manager
-      targetRevision: v1.14.4
-      helm:
-        releaseName: cert-manager
-        valuesObject:
-          installCRDs: true
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions: [ CreateNamespace=true, ApplyOutOfSyncOnly=true ]
-
 // addons/db-local-pv/dev/pv.yaml
 apiVersion: v1
 kind: PersistentVolume
@@ -1191,7 +1165,32 @@ spec:
       - ApplyOutOfSyncOnly=true
 
 // clusters/prod/apps/argocd-ingress.yaml
-
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - argocd.weblightenment.com
+      secretName: argocd-tls
+  rules:
+    - host: argocd.weblightenment.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
 
 // clusters/prod/apps/backend-app.yaml
 apiVersion: argoproj.io/v1alpha1
@@ -1459,15 +1458,16 @@ networkPolicy:
     enabled: true
 
 // values/backend/prod.yaml
+# values/backend/prod.yaml
 app:
-  name: frontend
-  syncWave: "2"
-
+  name: backend
+  syncWave: "1"
+fullnameOverride: backend
 replicaCount: 2
 
 image:
-  repository: elipavlov/newsapp-frontend
-  tag: latest-ec40111   # <- updated to an image that exists on Docker Hub
+  repository: elipavlov/newsapp-backend
+  tag: latest-<actual-prod-tag>
   pullPolicy: IfNotPresent
 
 service:
@@ -1486,39 +1486,49 @@ affinity:
             matchExpressions:
               - key: app.kubernetes.io/component
                 operator: In
-                values: ["frontend"]
+                values: ["backend"]
           topologyKey: kubernetes.io/hostname
 
 resources:
   requests:
-    cpu: 50m
-    memory: 64Mi
+    cpu: 100m
+    memory: 256Mi
   limits:
-    cpu: 200m
-    memory: 128Mi
+    cpu: 500m
+    memory: 512Mi
 
 env:
   plain:
-    VITE_SERVER_URL: "/api"
-    VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
-    BACKEND_SERVICE_PORT: "8080"
-
-ingress:
-  enabled: true
-  className: nginx
-  certManagerClusterIssuer: letsencrypt-staging
-  hosts:
-    - host: newsapp-dev.weblightenment.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - hosts: ["newsapp-dev.weblightenment.com"]
-      secretName: newsapp-dev-selfsigned-tls
+    DB_ENGINE_TYPE: "POSTGRES"
+  secretRef: backend-db-connection
 
 hpa:
   enabled: false
+
+db:
+  enabled: true
+  service:
+    name: postgresql-prod
+    port: 5432
+    type: ClusterIP
+  dbName: newsdb_prod
+  nodeSelector: { role: database }
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "database"
+      effect: "NoSchedule"
+  existingSecret:
+    name: postgres-credentials
+    userKey: POSTGRES_USER
+    passwordKey: POSTGRES_PASSWORD
+  storage:
+    size: 20Gi
+    storageClassName: "local-db-prod"
+
+networkPolicy:
+  backendEgressWeb:
+    enabled: true
 
 // values/frontend/dev.yaml
 app:
