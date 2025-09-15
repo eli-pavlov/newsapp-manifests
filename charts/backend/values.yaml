@@ -1,46 +1,36 @@
-app:
-  name: backend
-  syncWave: "1"
+probes:
+  readiness:
+    enabled: true
+    type: http
+    path: /healthz
+    scheme: HTTP
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 3
 
-image:
-  repository: ""
-  tag: "latest"
-  pullPolicy: IfNotPresent
+  liveness:
+    enabled: true
+    type: http
+    path: /healthz
+    scheme: HTTP
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 6
 
-replicaCount: 1
-
-service:
-  type: ClusterIP
-  port: 8080
-
-podSecurityContext: {}
-containerSecurityContext: {}
-
-resources:
-  requests:
-    cpu: 100m
-    memory: 256Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
-
-imagePullSecrets: []
-
-env:
-  plain: {}
-  secretRef: ""
-  configRef: ""
-
-hpa:
-  enabled: false
+  startup:
+    enabled: false
+    type: http
+    path: /healthz
+    scheme: HTTP
+    periodSeconds: 5
+    failureThreshold: 30
 
 networkPolicy:
-  enabled: true
   backendEgressWeb:
-    enabled: false
+    enabled: true
     exceptCidrs: []
-    ports: [80,443]
+    ports: [80, 443]

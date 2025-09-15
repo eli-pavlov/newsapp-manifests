@@ -1,42 +1,3 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "backend.fullname" . }}
-  labels:
-    {{- include "backend.labels" . | nindent 4 }}
-  annotations:
-    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: {{ include "backend.name" . }}
-      app.kubernetes.io/component: {{ include "backend.component" . }}
-  template:
-    metadata:
-      labels:
-        {{- include "backend.labels" . | nindent 8 }}
-    spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-{{ toYaml . | indent 8 }}
-      {{- end }}
       containers:
         - name: {{ include "backend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -64,3 +25,56 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+
+          {{- with .Values.probes }}
+          {{- if .readiness.enabled }}
+          readinessProbe:
+            {{- if eq (.readiness.type | default "http") "http" }}
+            httpGet:
+              path: {{ .readiness.path | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .readiness.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ $.readiness.port | default $.Values.service.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .readiness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .readiness.failureThreshold | default 3 }}
+          {{- end }}
+
+          {{- if .liveness.enabled }}
+          livenessProbe:
+            {{- if eq (.liveness.type | default "http") "http" }}
+            httpGet:
+              path: {{ .liveness.path | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .liveness.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ .liveness.port | default $.Values.service.port }}
+            {{- end }}
+            initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .liveness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .liveness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .liveness.successThreshold | default 1 }}
+            failureThreshold: {{ .liveness.failureThreshold | default 6 }}
+          {{- end }}
+
+          {{- if and .startup .startup.enabled }}
+          startupProbe:
+            {{- if eq (.startup.type | default "http") "http" }}
+            httpGet:
+              path: {{ .startup.path | quote }}
+              port: {{ $.Values.service.port }}
+              scheme: {{ .startup.scheme | default "HTTP" }}
+            {{- else }}
+            tcpSocket:
+              port: {{ .startup.port | default $.Values.service.port }}
+            {{- end }}
+            periodSeconds: {{ .startup.periodSeconds | default 5 }}
+            failureThreshold: {{ .startup.failureThreshold | default 30 }}
+          {{- end }}
+          {{- end }}
