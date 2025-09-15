@@ -15,8 +15,6 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-    # Tell cert-manager to provision the TLS secret referenced below
-    cert-manager.io/cluster-issuer: "letsencrypt-dns01-cloudflare"
 spec:
   ingressClassName: nginx
   tls:
