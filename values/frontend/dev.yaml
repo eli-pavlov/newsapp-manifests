@@ -54,7 +54,6 @@ ingress:
           pathType: Prefix
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
-      secretName: newsapp-dev-selfsigned-tls
-
+      secretName: newsapp-tls
 hpa:
   enabled: false
