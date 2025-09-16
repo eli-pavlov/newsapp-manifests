@@ -27,6 +27,10 @@ spec:
             externalTrafficPolicy: Local
           nodeSelector:
             role: application
+          admissionWebhooks:
+            enabled: false
+            patch:
+              enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: ingress-nginx
