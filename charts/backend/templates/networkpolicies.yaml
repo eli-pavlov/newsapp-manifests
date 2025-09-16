@@ -39,9 +39,39 @@ spec:
             {{- end }}
             {{- end }}
       ports:
+      - protocol: TCP
+        port: 80
+      - protocol: TCP
+        port: 443
+      - protocol: UDP
+        port: 53
+      - protocol: TCP
+        port: 53
       {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
         - protocol: TCP
           port: {{ $p }}
       {{- end }}
 {{- end }}
+{{- end }}
+
+{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.backendEgressDb.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: be-egress-to-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            {{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
+            {{ toYaml . | nindent 14 }}
+            {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.backendEgressDb.dbPort }}
 {{- end }}

@@ -76,3 +76,10 @@ networkPolicy:
     enabled: true
     exceptCidrs: []
     ports: [80, 443]
+
+  backendEgressDb:
+      enabled: true
+      dbSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+      dbPort: 5432
