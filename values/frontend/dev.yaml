@@ -51,6 +51,11 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+          backend:
+            service:
+              name: newsapp-frontend-dev
+              port:
+                number: 8080
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
       secretName: newsapp-dev-tls
