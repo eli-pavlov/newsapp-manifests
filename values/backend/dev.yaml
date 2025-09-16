@@ -6,12 +6,12 @@ replicaCount: 2
 
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-66766bc     # <- updated to an image that exists on Docker Hub
+  tag: latest-66766bc
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
-  port: 8080
+  port: 3000
 
 nodeSelector:
   role: application
