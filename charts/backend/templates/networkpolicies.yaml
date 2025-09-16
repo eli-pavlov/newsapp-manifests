@@ -1,3 +1,8 @@
+{{- /*
+Network policies for backend.
+Each resource is guarded by its own conditional so rendered YAML stays valid.
+*/ -}}
+
 {{- if .Values.networkPolicy.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
