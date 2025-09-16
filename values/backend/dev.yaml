@@ -64,7 +64,6 @@ db:
   storage:
     size: 10Gi
     storageClassName: "local-db-dev"
-
 networkPolicy:
   backendEgressWeb:
     enabled: true
