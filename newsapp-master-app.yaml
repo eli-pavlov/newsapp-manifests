@@ -4,7 +4,7 @@ metadata:
   name: newsapp-master-app
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - argocd.argoproj.io/resources-finalizer-foreground
 spec:
   project: default
   source:
