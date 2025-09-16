@@ -1,12 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cert-manager-helm
+  name: cert-manager-crds
   namespace: argocd
-  labels:
-    app.kubernetes.io/name: cert-manager
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-wave: "-4"
 spec:
   project: default
   source:
@@ -15,8 +13,13 @@ spec:
     targetRevision: v1.18.2
     helm:
       releaseName: cert-manager
+      # Only render the CRDs
       values: |
-        installCRDs: false
+        installCRDs: true
+        webhook.enabled: false
+        cainjector.enabled: false
+        startupapicheck.enabled: false
+        # You might need to add more disabled components to isolate CRDs
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
@@ -26,4 +29,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
