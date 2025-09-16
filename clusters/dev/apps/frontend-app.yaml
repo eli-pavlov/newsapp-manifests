@@ -14,6 +14,9 @@ spec:
     helm:
       valueFiles:
         - ../../values/frontend/dev.yaml
+      values: |
+        ingress:
+          certManagerClusterIssuer: letsencrypt-dns01-cloudflare
   destination:
     server: https://kubernetes.default.svc
     namespace: development
