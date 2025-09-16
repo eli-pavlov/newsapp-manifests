@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   finalizers:
     - argocd.argoproj.io/resources-finalizer-foreground
+  # - resources-finalizer.argocd.argoproj.io # old version for backup
 spec:
   project: default
   source:
