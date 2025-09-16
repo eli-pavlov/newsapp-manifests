@@ -1,4 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -7,7 +8,8 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/component: backend
-  policyTypes: ["Ingress"]
+  policyTypes:
+    - Ingress
   ingress:
     - from:
         - podSelector:
@@ -16,6 +18,7 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.service.port }}
+{{- end }}
 
 {{- if .Values.networkPolicy.backendEgressWeb.enabled }}
 ---
@@ -27,7 +30,8 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/component: backend
-  policyTypes: ["Egress"]
+  policyTypes:
+    - Egress
   egress:
     - to:
         - ipBlock:
@@ -39,19 +43,18 @@ spec:
             {{- end }}
             {{- end }}
       ports:
-      - protocol: TCP
-        port: 80
-      - protocol: TCP
-        port: 443
-      - protocol: UDP
-        port: 53
-      - protocol: TCP
-        port: 53
-      {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
         - protocol: TCP
           port: {{ $p }}
-      {{- end }}
-{{- end }}
+        {{- end }}
 {{- end }}
 
 {{- if and .Values.networkPolicy.enabled .Values.networkPolicy.backendEgressDb.enabled }}
@@ -64,13 +67,14 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/component: backend
-  policyTypes: ["Egress"]
+  policyTypes:
+    - Egress
   egress:
     - to:
         - podSelector:
-            {{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
-            {{ toYaml . | nindent 14 }}
-            {{- end }}
+{{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
+{{ toYaml . | nindent 12 }}
+{{- end }}
       ports:
         - protocol: TCP
           port: {{ .Values.networkPolicy.backendEgressDb.dbPort }}
