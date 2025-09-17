@@ -1,3 +1,4 @@
+# values/backend/dev.yaml
 app:
   name: backend
   syncWave: "1"
@@ -36,11 +37,16 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+# Plain env vars (safe to be in values for dev)
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
     NODE_ENV: development
+  # Name of the Secret which contains DB credentials and other secret envs
   secretRef: backend-db-connection
+  # If you set ignoreEnvFrom=true, the template will NOT add envFrom: secretRef
+  ignoreEnvFrom: false
+  configRef: ""
 
 hpa:
   enabled: false
@@ -65,6 +71,10 @@ db:
   storage:
     size: 10Gi
     storageClassName: "local-db-dev"
+  # enable the initContainer wait-for-db
+  waitForDB:
+    enabled: true
+
 networkPolicy:
   backendEgressWeb:
     enabled: true
