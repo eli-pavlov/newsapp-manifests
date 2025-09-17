@@ -1,80 +1,88 @@
+{{- /*
+Frontend Deployment
+- capture root context as $root so top-level .Values / .Release remain available from inside nested blocks.
+- use with/range against $root.Values.<...> so inner "." becomes the expected value for toYaml rendering.
+*/ -}}
+{{- $root := . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "frontend.fullname" . }}
+  name: {{ include "frontend.fullname" $root }}
   labels:
-    {{- include "frontend.labels" . | nindent 4 }}
+{{ include "frontend.labels" $root | indent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
+    argocd.argoproj.io/sync-wave: {{ $root.Values.app.syncWave | default "2" | quote }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ $root.Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "frontend.name" . }}
-      app.kubernetes.io/component: {{ include "frontend.component" . }}
+      app.kubernetes.io/name: {{ include "frontend.name" $root }}
+      app.kubernetes.io/component: {{ include "frontend.component" $root }}
   template:
     metadata:
       labels:
-        {{- include "frontend.labels" . | nindent 8 }}
+{{ include "frontend.labels" $root | indent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- with $root.Values.imagePullSecrets }}
       imagePullSecrets:
 {{ toYaml . | indent 8 }}
       {{- end }}
-      {{- with .Values.podSecurityContext }}
+      {{- with $root.Values.podSecurityContext }}
       securityContext:
 {{ toYaml . | indent 8 }}
       {{- end }}
-      {{- with .Values.nodeSelector }}
+      {{- with $root.Values.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with $root.Values.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with $root.Values.affinity }}
       affinity:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
       containers:
-        - name: {{ include "frontend.name" . }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: {{ include "frontend.name" $root }}
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.service.port }}
+            - containerPort: {{ $root.Values.service.port }}
               name: http
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- range $k, $v := .Values.env.plain }}
+            {{- range $k, $v := $root.Values.env.plain }}
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
-          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          {{- if or $root.Values.env.secretRef $root.Values.env.configRef }}
           envFrom:
-            {{- if .Values.env.configRef }}
-            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- if $root.Values.env.configRef }}
+            - configMapRef: { name: {{ $root.Values.env.configRef }} }
             {{- end }}
-            {{- if .Values.env.secretRef }}
-            - secretRef: { name: {{ .Values.env.secretRef }} }
+            {{- if $root.Values.env.secretRef }}
+            - secretRef: { name: {{ $root.Values.env.secretRef }} }
             {{- end }}
           {{- end }}
           resources:
-{{ toYaml .Values.resources | indent 12 }}
-          {{- with .Values.probes }}
+{{ toYaml $root.Values.resources | indent 12 }}
+
+          {{- with $root.Values.probes }}
           {{- if .readiness.enabled }}
           readinessProbe:
             {{- if eq (.readiness.type | default "tcp") "http" }}
             httpGet:
               path: {{ .readiness.path | default "/" | quote }}
-              port: {{ .Values.service.port }}
+              port: {{ $root.Values.service.port }}
               scheme: {{ .readiness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .Values.service.port }}
+              port: {{ $root.Values.service.port }}
             {{- end }}
             initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
             periodSeconds: {{ .readiness.periodSeconds | default 10 }}
@@ -82,16 +90,17 @@ spec:
             successThreshold: {{ .readiness.successThreshold | default 1 }}
             failureThreshold: {{ .readiness.failureThreshold | default 3 }}
           {{- end }}
+
           {{- if .liveness.enabled }}
           livenessProbe:
             {{- if eq (.liveness.type | default "tcp") "http" }}
             httpGet:
               path: {{ .liveness.path | default "/" | quote }}
-              port: {{ .Values.service.port }}
+              port: {{ $root.Values.service.port }}
               scheme: {{ .liveness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .Values.service.port }}
+              port: {{ $root.Values.service.port }}
             {{- end }}
             initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
             periodSeconds: {{ .liveness.periodSeconds | default 10 }}
@@ -99,16 +108,17 @@ spec:
             successThreshold: {{ .liveness.successThreshold | default 1 }}
             failureThreshold: {{ .liveness.failureThreshold | default 6 }}
           {{- end }}
+
           {{- if and .startup .startup.enabled }}
           startupProbe:
             {{- if eq (.startup.type | default "tcp") "http" }}
             httpGet:
               path: {{ .startup.path | default "/" | quote }}
-              port: {{ .Values.service.port }}
+              port: {{ $root.Values.service.port }}
               scheme: {{ .startup.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .Values.service.port }}
+              port: {{ $root.Values.service.port }}
             {{- end }}
             periodSeconds: {{ .startup.periodSeconds | default 5 }}
             failureThreshold: {{ .startup.failureThreshold | default 30 }}
