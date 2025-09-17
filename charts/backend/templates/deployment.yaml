@@ -123,9 +123,24 @@ spec:
                   name: {{ .Values.db.existingSecret.name | quote }}
                   key: {{ .Values.db.existingSecret.passwordKey | quote }}
             - name: DB_HOST
+              {{- if .Values.env.secretRef }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.env.secretRef | quote }}
+                  key: DB_HOST
+              {{- else }}
               value: {{ printf "%s.%s.svc.cluster.local" .Values.db.service.name .Release.Namespace | quote }}
+              {{- end }}
+
             - name: DB_PORT
+              {{- if .Values.env.secretRef }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.env.secretRef | quote }}
+                  key: DB_PORT
+              {{- else }}
               value: "{{ .Values.db.service.port }}"
+              {{- end }}
             {{- end }}
 
           {{- /* Keep envFrom for convenience, but guardable via values.ignoreEnvFrom */ -}}
