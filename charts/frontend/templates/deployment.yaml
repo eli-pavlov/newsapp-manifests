@@ -1,22 +1,21 @@
-{{- $ := . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "frontend.fullname" $ }}
+  name: {{ include "frontend.fullname" . }}
   labels:
-    {{- include "frontend.labels" $ | nindent 4 }}
+    {{- include "frontend.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "frontend.name" $ }}
-      app.kubernetes.io/component: {{ include "frontend.component" $ }}
+      app.kubernetes.io/name: {{ include "frontend.name" . }}
+      app.kubernetes.io/component: {{ include "frontend.component" . }}
   template:
     metadata:
       labels:
-        {{- include "frontend.labels" $ | nindent 8 }}
+        {{- include "frontend.labels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -39,7 +38,7 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
       containers:
-        - name: {{ include "frontend.name" $ }}
+        - name: {{ include "frontend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -71,11 +70,11 @@ spec:
             {{- if eq (.readiness.type | default "tcp") "http" }}
             httpGet:
               path: {{ .readiness.path | default "/" | quote }}
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
               scheme: {{ .readiness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
             {{- end }}
             initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
             periodSeconds: {{ .readiness.periodSeconds | default 10 }}
@@ -88,11 +87,11 @@ spec:
             {{- if eq (.liveness.type | default "tcp") "http" }}
             httpGet:
               path: {{ .liveness.path | default "/" | quote }}
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
               scheme: {{ .liveness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
             {{- end }}
             initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
             periodSeconds: {{ .liveness.periodSeconds | default 10 }}
@@ -105,11 +104,11 @@ spec:
             {{- if eq (.startup.type | default "tcp") "http" }}
             httpGet:
               path: {{ .startup.path | default "/" | quote }}
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
               scheme: {{ .startup.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
             {{- end }}
             periodSeconds: {{ .startup.periodSeconds | default 5 }}
             failureThreshold: {{ .startup.failureThreshold | default 30 }}
