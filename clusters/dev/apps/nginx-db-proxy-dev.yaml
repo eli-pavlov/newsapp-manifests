@@ -1,0 +1,83 @@
+# nginx-pg-proxy-dev.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-pg-proxy-config
+  namespace: development
+data:
+  nginx.conf: |
+    worker_processes  1;
+    error_log  /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+      worker_connections  1024;
+    }
+
+    stream {
+      upstream pg_dev_upstream {
+        # The Postgres client service (dev) in the development namespace
+        server postgresql-dev.development.svc.cluster.local:5432;
+      }
+
+      server {
+        listen 5433 ssl;
+        ssl_certificate /etc/nginx/tls/dbdev/tls.crt;
+        ssl_certificate_key /etc/nginx/tls/dbdev/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        proxy_pass pg_dev_upstream;
+        proxy_timeout  5m;
+        proxy_connect_timeout 30s;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-pg-proxy
+  namespace: development
+spec:
+  selector:
+    matchLabels:
+      app: nginx-pg-proxy
+      purpose: pg-proxy
+  template:
+    metadata:
+      labels:
+        app: nginx-pg-proxy
+        purpose: pg-proxy
+    spec:
+      nodeSelector:
+        role: database
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine
+          args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
+          ports:
+            - containerPort: 5433
+              hostPort: 5433
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: tls-dbdev
+              mountPath: /etc/nginx/tls/dbdev
+              readOnly: true
+          securityContext:
+            runAsUser: 0
+      volumes:
+        - name: config
+          configMap:
+            name: nginx-pg-proxy-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+        - name: tls-dbdev
+          secret:
+            secretName: newsapp-db-dev-tls

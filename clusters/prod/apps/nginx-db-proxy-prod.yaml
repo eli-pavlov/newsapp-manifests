@@ -1,0 +1,85 @@
+# nginx-pg-proxy-prod.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-pg-proxy-config
+  namespace: default
+data:
+  nginx.conf: |
+    worker_processes  1;
+    error_log  /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+
+    events {
+      worker_connections  1024;
+    }
+
+    stream {
+      upstream pg_prod_upstream {
+        # The Postgres client service (prod) in the default namespace
+        server postgresql.default.svc.cluster.local:5432;
+      }
+
+      server {
+        listen 5432 ssl;
+        ssl_certificate /etc/nginx/tls/dbprod/tls.crt;
+        ssl_certificate_key /etc/nginx/tls/dbprod/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+        proxy_pass pg_prod_upstream;
+        proxy_timeout  5m;
+        proxy_connect_timeout 30s;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nginx-pg-proxy
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: nginx-pg-proxy
+      purpose: pg-proxy
+  template:
+    metadata:
+      labels:
+        app: nginx-pg-proxy
+        purpose: pg-proxy
+    spec:
+      # run only on DB node(s)
+      nodeSelector:
+        role: database
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: nginx
+          image: nginx:1.25-alpine
+          args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
+          ports:
+            - containerPort: 5432
+              hostPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: tls-dbprod
+              mountPath: /etc/nginx/tls/dbprod
+              readOnly: true
+          securityContext:
+            # root needed for listening on host ports (adjust if cluster policies forbid)
+            runAsUser: 0
+      volumes:
+        - name: config
+          configMap:
+            name: nginx-pg-proxy-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+        - name: tls-dbprod
+          secret:
+            secretName: newsapp-db-prod-tls
