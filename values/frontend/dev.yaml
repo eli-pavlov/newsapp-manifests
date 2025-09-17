@@ -3,8 +3,8 @@ app:
   syncWave: "2"
 replicaCount: 2
 image:
-  repository: elipavlov/newsapp-frontend
-  tag: latest-ec40111
+  repository: elipavlov/newsapp-frontend-dev
+  tag: dev-29c4b69
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
