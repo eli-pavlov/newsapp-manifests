@@ -1,18 +1,24 @@
+{{- /*
+Ingress for frontend.
+- We capture the root context into $root to safely reference top-level .Values inside nested ranges/with blocks.
+- Always close conditionals/with/range with matching {{- end }} to avoid unexpected EOF.
+*/ -}}
 {{- if .Values.ingress.enabled }}
+{{- $root := . -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "frontend.fullname" . }}
+  name: {{ include "frontend.fullname" $root }}
   annotations:
-    {{- if .Values.ingress.annotations }}
-{{ toYaml .Values.ingress.annotations | nindent 4 }}
+    {{- if $root.Values.ingress.annotations }}
+{{ toYaml $root.Values.ingress.annotations | nindent 4 }}
     {{- end }}
 spec:
-  {{- with .Values.ingress.className }}
+  {{- with $root.Values.ingress.className }}
   ingressClassName: {{ . | quote }}
   {{- end }}
   rules:
-    {{- range $host := .Values.ingress.hosts }}
+    {{- range $host := $root.Values.ingress.hosts }}
     - host: {{ $host.host | quote }}
       http:
         paths:
@@ -21,12 +27,13 @@ spec:
             pathType: {{ $p.pathType | default "Prefix" | quote }}
             backend:
               service:
-                name: {{ include "frontend.fullname" . }}
+                name: {{ include "frontend.fullname" $root }}
                 port:
-                  number: {{ $.Values.service.port }}
+                  number: {{ $root.Values.service.port }}
           {{- end }}
     {{- end }}
-  {{- with .Values.ingress.tls }}
+  {{- with $root.Values.ingress.tls }}
   tls:
 {{ toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
