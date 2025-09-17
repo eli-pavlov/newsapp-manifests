@@ -1,21 +1,16 @@
 app:
   name: frontend
   syncWave: "2"
-
 replicaCount: 2
-
 image:
   repository: elipavlov/newsapp-frontend
   tag: latest-ec40111
   pullPolicy: IfNotPresent
-
 service:
   type: ClusterIP
   port: 8080
-
 nodeSelector:
   role: application
-
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -27,7 +22,6 @@ affinity:
                 operator: In
                 values: ["frontend"]
           topologyKey: kubernetes.io/hostname
-
 resources:
   requests:
     cpu: 50m
@@ -35,14 +29,12 @@ resources:
   limits:
     cpu: 200m
     memory: 128Mi
-
 env:
   plain:
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
     BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
     BACKEND_SERVICE_PORT: "3000"
-
 ingress:
   enabled: true
   className: nginx
@@ -51,13 +43,13 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-          backend:
-            service:
-              name: newsapp-frontend-dev
-              port:
-                number: 8080
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
       secretName: newsapp-dev-tls
 hpa:
   enabled: false
+probes:
+  readiness:
+    enabled: true
+  liveness:
+    enabled: true

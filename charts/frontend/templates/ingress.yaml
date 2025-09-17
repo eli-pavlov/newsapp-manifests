@@ -7,9 +7,6 @@ metadata:
     {{- if .Values.ingress.annotations }}
 {{ toYaml .Values.ingress.annotations | nindent 4 }}
     {{- end }}
-    {{- if .Values.ingress.certManagerClusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.certManagerClusterIssuer | quote }}
-    {{- end }}
 spec:
   {{- with .Values.ingress.className }}
   ingressClassName: {{ . | quote }}

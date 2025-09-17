@@ -13,35 +13,35 @@ spec:
   issuerRef:
     name: letsencrypt-staging
     kind: ClusterIssuer
-# ---
-# # Cert for frontend (prod)
-# apiVersion: cert-manager.io/v1
-# kind: Certificate
-# metadata:
-#   name: cert-newsapp-weblightenment-com
-#   namespace: default
-#   annotations:
-#     argocd.argoproj.io/sync-wave: "-1"
-# spec:
-#   secretName: newsapp-tls
-#   dnsNames:
-#     - newsapp.weblightenment.com
-#   issuerRef:
-#     name: letsencrypt-dns01-cloudflare
-#     kind: ClusterIssuer
-# ---
-# # Cert for frontend (dev)
-# apiVersion: cert-manager.io/v1
-# kind: Certificate
-# metadata:
-#   name: cert-newsapp-dev-weblightenment-com
-#   namespace: development
-#   annotations:
-#     argocd.argoproj.io/sync-wave: "-1"
-# spec:
-#   secretName: newsapp-dev-tls
-#   dnsNames:
-#     - newsapp-dev.weblightenment.com
-#   issuerRef:
-#     name: letsencrypt-staging
-#     kind: ClusterIssuer
+---
+# Cert for frontend (prod)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-newsapp-weblightenment-com
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: newsapp-tls
+  dnsNames:
+    - newsapp.weblightenment.com
+  issuerRef:
+    name: letsencrypt-dns01-cloudflare
+    kind: ClusterIssuer
+---
+# Cert for frontend (dev)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-newsapp-dev-weblightenment-com
+  namespace: development
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: newsapp-dev-tls
+  dnsNames:
+    - newsapp-dev.weblightenment.com
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer

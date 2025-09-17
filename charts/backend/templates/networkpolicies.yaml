@@ -56,10 +56,6 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-        {{- range $p := (.Values.networkPolicy.backendEgressWeb.ports | default (list 80 443)) }}
-        - protocol: TCP
-          port: {{ $p }}
-        {{- end }}
 {{- end }}
 
 {{- if and .Values.networkPolicy.enabled .Values.networkPolicy.backendEgressDb.enabled }}
@@ -76,14 +72,11 @@ spec:
     - Egress
   egress:
     - to:
-        {{- if .Values.networkPolicy.backendEgressDb.dbSelector }}
         - podSelector:
-{{ toYaml .Values.networkPolicy.backendEgressDb.dbSelector | indent 10 }}
-        {{- else }}
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ .Values.db.service.name | default "postgresql" | quote }}
-        {{- end }}
+            {{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
+{{ toYaml . | nindent 12 }}
+            {{- end }}
       ports:
         - protocol: TCP
-          port: {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
+          port: {{ .Values.networkPolicy.backendEgressDb.dbPort }}
+{{- end }}

@@ -2,7 +2,6 @@
 app:
   name: backend
   syncWave: "1"
-fullnameOverride: backend
 replicaCount: 2
 image:
   repository: elipavlov/newsapp-backend
@@ -37,26 +36,12 @@ env:
   secretRef: backend-db-connection
 hpa:
   enabled: false
-db:
-  enabled: true
-  service:
-    name: postgresql-prod
-    port: 5432
-    type: ClusterIP
-  dbName: newsdb_prod
-  nodeSelector: {role: database}
-  tolerations:
-    - key: "role"
-      operator: "Equal"
-      value: "database"
-      effect: "NoSchedule"
-  existingSecret:
-    name: postgres-credentials
-    userKey: POSTGRES_USER
-    passwordKey: POSTGRES_PASSWORD
-  storage:
-    size: 20Gi
-    storageClassName: "local-db-prod"
 networkPolicy:
   backendEgressWeb:
     enabled: true
+  backendEgressDb:
+    enabled: true
+    dbSelector:
+      matchLabels:
+        app.kubernetes.io/name: postgresql-prod
+    dbPort: 5432

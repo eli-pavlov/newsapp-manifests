@@ -65,7 +65,7 @@ spec:
           resources:
 {{ toYaml .Values.resources | indent 12 }}
           {{- with .Values.probes }}
-          {{- if .readiness }}
+          {{- if .readiness.enabled }}
           readinessProbe:
             {{- if eq (.readiness.type | default "tcp") "http" }}
             httpGet:
@@ -82,7 +82,7 @@ spec:
             successThreshold: {{ .readiness.successThreshold | default 1 }}
             failureThreshold: {{ .readiness.failureThreshold | default 3 }}
           {{- end }}
-          {{- if .liveness }}
+          {{- if .liveness.enabled }}
           livenessProbe:
             {{- if eq (.liveness.type | default "tcp") "http" }}
             httpGet:

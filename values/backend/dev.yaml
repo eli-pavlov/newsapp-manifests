@@ -1,21 +1,16 @@
 app:
   name: backend
   syncWave: "1"
-fullnameOverride: backend
 replicaCount: 2
-
 image:
   repository: elipavlov/newsapp-backend
   tag: latest-66766bc
   pullPolicy: IfNotPresent
-
 service:
   type: ClusterIP
   port: 3000
-
 nodeSelector:
   role: application
-
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -27,7 +22,6 @@ affinity:
                 operator: In
                 values: ["backend"]
           topologyKey: kubernetes.io/hostname
-
 resources:
   requests:
     cpu: 100m
@@ -35,35 +29,18 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
   secretRef: backend-db-connection
-
 hpa:
   enabled: false
-
-db:
-  enabled: true
-  service:
-    name: postgresql-dev
-    port: 5432
-    type: ClusterIP
-  dbName: newsdb_dev
-  nodeSelector: { role: database }
-  tolerations:
-    - key: "role"
-      operator: "Equal"
-      value: "database"
-      effect: "NoSchedule"
-  existingSecret:
-    name: postgres-credentials
-    userKey: POSTGRES_USER
-    passwordKey: POSTGRES_PASSWORD
-  storage:
-    size: 10Gi
-    storageClassName: "local-db-dev"
 networkPolicy:
   backendEgressWeb:
     enabled: true
+  backendEgressDb:
+    enabled: true
+    dbSelector:
+      matchLabels:
+        app.kubernetes.io/name: postgresql-dev
+    dbPort: 5432

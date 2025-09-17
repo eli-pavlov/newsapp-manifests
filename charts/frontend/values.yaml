@@ -2,23 +2,18 @@
 app:
   name: frontend
   syncWave: "2"
-
 image:
   repository: elipavlov/newsapp-frontend
   tag: "latest"
   pullPolicy: IfNotPresent
-
 replicaCount: 1
-
 service:
   type: ClusterIP
   port: 8080
   nodePort: null
   hostPort: null
-
 podSecurityContext: {}
 containerSecurityContext: {}
-
 resources:
   requests:
     cpu: 50m
@@ -26,34 +21,29 @@ resources:
   limits:
     cpu: 200m
     memory: 128Mi
-
 nodeSelector: {}
 tolerations: []
 affinity: {}
-
 imagePullSecrets: []
-
 env:
   plain: {}
   secretRef: ""
   configRef: ""
-
 hpa:
   enabled: false
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 80
-
 ingress:
   enabled: false
   className: ""
   annotations: {}
-  certManagerClusterIssuer: ""   # set per-env (dev->letsencrypt-staging, prod->letsencrypt-dns01-cloudflare)
+  certManagerClusterIssuer: "" # set per-env (dev->letsencrypt-staging, prod->letsencrypt-dns01-cloudflare)
   hosts: []
   tls: []
-
 probes:
   readiness:
+    enabled: true  # Added explicit enabled flag
     type: tcp
     initialDelaySeconds: 5
     periodSeconds: 10
@@ -61,6 +51,7 @@ probes:
     successThreshold: 1
     failureThreshold: 3
   liveness:
+    enabled: true  # Added explicit enabled flag
     type: tcp
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -72,6 +63,5 @@ probes:
     type: tcp
     periodSeconds: 5
     failureThreshold: 30
-
 networkPolicy:
   enabled: true
