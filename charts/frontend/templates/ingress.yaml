@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "frontend.fullname" $ }}
+  name: {{ include "frontend.fullname" . }}
   annotations:
     {{- if .Values.ingress.annotations }}
 {{ toYaml .Values.ingress.annotations | nindent 4 }}
@@ -21,7 +21,7 @@ spec:
             pathType: {{ $p.pathType | default "Prefix" | quote }}
             backend:
               service:
-                name: {{ include "frontend.fullname" $ }}
+                name: {{ include "frontend.fullname" . }}
                 port:
                   number: {{ $.Values.service.port }}
           {{- end }}
@@ -29,4 +29,4 @@ spec:
   {{- with .Values.ingress.tls }}
   tls:
 {{ toYaml . | nindent 4 }}
-  {{- e
+  {{- end }}
