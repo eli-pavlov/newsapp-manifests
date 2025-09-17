@@ -33,7 +33,7 @@ imagePullSecrets: []
 
 env:
   plain: {}
-  secretRef: ""
+  secretRef: "backend-db-connection"
   configRef: ""
 
 hpa:
