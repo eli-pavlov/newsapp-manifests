@@ -5,7 +5,6 @@ metadata:
   namespace: argocd
   finalizers:
     - argocd.argoproj.io/resources-finalizer-foreground
-  # - resources-finalizer.argocd.argoproj.io # old version for backup
 spec:
   project: default
   source:
@@ -13,7 +12,7 @@ spec:
     targetRevision: main
     path: clusters
     directory:
-      recurse: true # This tells Argo CD to look in all subdirectories
+      recurse: true
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
