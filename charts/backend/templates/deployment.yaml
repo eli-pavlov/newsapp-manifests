@@ -89,13 +89,26 @@ spec:
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
-          {{- if or .Values.env.secretRef .Values.env.configRef }}
+          {{- /* envFrom: support singular secretRef (back compat) and a list secretRefs (preferred) */ -}}
+          {{- $cfgRef := .Values.env.configRef -}}
+          {{- $secretRef := .Values.env.secretRef -}}
+          {{- $secretRefs := .Values.env.secretRefs -}}
+          {{- if or $cfgRef $secretRef $secretRefs }}
           envFrom:
-            {{- if .Values.env.configRef }}
-            - configMapRef: { name: {{ .Values.env.configRef }} }
+            {{- if $cfgRef }}
+            - configMapRef: { name: {{ $cfgRef }} }
             {{- end }}
-            {{- if .Values.env.secretRef }}
-            - secretRef: { name: {{ .Values.env.secretRef }} }
+
+            {{- /* Support singular secretRef for backward compatibility */ -}}
+            {{- if and (not $secretRefs) $secretRef }}
+            - secretRef: { name: {{ $secretRef }} }
+            {{- end }}
+
+            {{- /* Support a list of secret names */ -}}
+            {{- if $secretRefs }}
+            {{- range $i, $s := $secretRefs }}
+            - secretRef: { name: {{ $s }} }
+            {{- end }}
             {{- end }}
           {{- end }}
           resources:
