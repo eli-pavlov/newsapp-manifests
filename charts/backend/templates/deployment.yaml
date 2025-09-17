@@ -44,10 +44,10 @@ spec:
             - sh
             - -c
             - >
-              {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict -}}
-              {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" -}}
-              {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" -}}
-              {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 -}}
+              {{ $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict }}
+              {{ $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" }}
+              {{ $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}
+              {{ $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
               for i in $(seq 1 60); do
                 if pg_isready -h {{ printf "%s-client.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }}; then
                   echo "DB is ready!"
