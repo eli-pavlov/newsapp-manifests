@@ -38,8 +38,9 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
       initContainers: 
+        - name: wait-for-db
           image: postgres:17-alpine
-          command: ['sh', '-c', 'until pg_isready -h postgresql-dev-client -p 5432; do echo "Waiting for DB..."; sleep 5; done']
+          command: ['sh', '-c', 'until pg_isready -h {{ .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels."app.kubernetes.io/name" }}-client -p {{ .Values.networkPolicy.backendEgressDb.dbPort }}; do echo "Waiting for DB..."; sleep 5; done']
           resources:
             limits:
               cpu: 100m
