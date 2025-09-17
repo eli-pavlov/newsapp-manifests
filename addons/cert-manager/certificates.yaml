@@ -11,7 +11,7 @@ spec:
   dnsNames:
     - argocd.weblightenment.com
   issuerRef:
-    name: letsencrypt-dns01-cloudflare
+    name: letsencrypt-staging
     kind: ClusterIssuer
 # ---
 # # Cert for frontend (prod)
