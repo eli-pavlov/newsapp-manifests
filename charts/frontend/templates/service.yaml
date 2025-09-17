@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ include "frontend.name" . }}
   annotations:
-    argocd.argoproj.io/sync-wave: "{{ .Values.app.syncWave | default "2" }}
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
 spec:
   type: {{ .Values.service.type }}
   selector:
