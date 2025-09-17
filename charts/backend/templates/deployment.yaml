@@ -66,10 +66,26 @@ spec:
               {{- end }}
             - name: DB_NAME
               value: {{ .Values.db.dbName | quote }}
+              
             - name: DB_PORT
+              {{- if .Values.env.secretRef }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.env.secretRef | quote }}
+                  key: DB_PORT
+              {{- else }}
               value: "{{ .Values.db.service.port }}"
+              {{- end }}
+
             - name: DB_HOST
+              {{- if .Values.env.secretRef }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.env.secretRef | quote }}
+                  key: DB_HOST
+              {{- else }}
               value: {{ printf "%s.%s.svc.cluster.local" .Values.db.service.name .Release.Namespace | quote }}
+              {{- end }}
           command:
             - sh
             - -c
