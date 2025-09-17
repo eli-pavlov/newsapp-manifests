@@ -79,3 +79,12 @@ db:
 networkPolicy:
   backendEgressWeb:
     enabled: true
+    exceptCidrs: []
+    ports: [80, 443]
+  backendEgressDb:
+    enabled: true
+    # explicit selector to match postgres pods in dev namespace
+    dbSelector:
+      matchLabels:
+        app.kubernetes.io/name: postgresql-dev
+    dbPort: 5432
