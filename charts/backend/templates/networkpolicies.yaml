@@ -76,11 +76,14 @@ spec:
     - Egress
   egress:
     - to:
+        {{- if .Values.networkPolicy.backendEgressDb.dbSelector }}
         - podSelector:
-{{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
-{{ toYaml . | nindent 12 }}
-{{- end }}
+{{ toYaml .Values.networkPolicy.backendEgressDb.dbSelector | indent 10 }}
+        {{- else }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .Values.db.service.name | default "postgresql" | quote }}
+        {{- end }}
       ports:
         - protocol: TCP
-          port: {{ .Values.networkPolicy.backendEgressDb.dbPort }}
-{{- end }}
+          port: {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
