@@ -44,9 +44,11 @@ spec:
             - sh
             - -c
             - >
-              until pg_isready -h {{ printf "%s-client" (index .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels "app.kubernetes.io/name") }} -p {{ .Values.networkPolicy.backendEgressDb.dbPort }}; do
-                echo "Waiting for DB..."; sleep 5;
-              done          
+              {{- $dbName := default "postgresql" (index .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels "app.kubernetes.io/name") -}}
+              for i in {1..60}; do
+                pg_isready -h {{ printf "%s-client" $dbName }} -p {{ .Values.networkPolicy.backendEgressDb.dbPort }} && break ||
+                echo "Waiting for DB (attempt $i/60)..."; sleep 5;
+              done || { echo "DB timeout after 5 min"; exit 1; }        
           resources:
             limits:
               cpu: 100m
