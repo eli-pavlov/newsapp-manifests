@@ -37,20 +37,27 @@ spec:
       affinity:
 {{ toYaml . | indent 8 }}
       {{- end }}
-    initContainers:
-      - name: wait-for-db
-        image: postgres:17-alpine
-        command:
-          - sh
-          - -c
-          - >
-            {{- $dbName := default "postgresql" (index .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels "app.kubernetes.io/name") -}}
-            {{- $ns := default (default "development" .Release.Namespace) .Values.networkPolicy.backendEgressDb.dbNamespace -}}
-            {{- $port := default 5432 .Values.networkPolicy.backendEgressDb.dbPort -}}
-            for i in {1..60}; do
-              pg_isready -h {{ printf "%s-client.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }} && break ||
-              echo "Waiting for DB (attempt $i/60)..."; sleep 5;
-            done || { echo "DB timeout after 5 min"; exit 1; }     
+      initContainers:
+        - name: wait-for-db
+          image: postgres:17-alpine
+          command:
+            - sh
+            - -c
+            - >
+              {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict -}}
+              {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" -}}
+              {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" -}}
+              {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 -}}
+              for i in $(seq 1 60); do
+                if pg_isready -h {{ printf "%s-client.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }}; then
+                  echo "DB is ready!"
+                  exit 0
+                fi
+                echo "Waiting for DB (attempt $i/60)..."
+                sleep 5
+              done
+              echo "DB timeout after 5 min"
+              exit 1 
           resources:
             limits:
               cpu: 100m
