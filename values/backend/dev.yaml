@@ -1,6 +1,7 @@
 app:
   name: backend
   syncWave: "1"
+fullnameOverride: backend
 replicaCount: 2
 image:
   repository: elipavlov/newsapp-backend
@@ -40,6 +41,7 @@ networkPolicy:
     enabled: true
   backendEgressDb:
     enabled: true
+    dbNamespace: development
     dbSelector:
       matchLabels:
         app.kubernetes.io/name: postgresql-dev

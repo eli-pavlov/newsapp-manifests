@@ -2,7 +2,6 @@
 Network policies for backend.
 Each resource is guarded by its own conditional so rendered YAML stays valid.
 */ -}}
-
 {{- if .Values.networkPolicy.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -24,7 +23,6 @@ spec:
         - protocol: TCP
           port: {{ .Values.service.port }}
 {{- end }}
-
 {{- if .Values.networkPolicy.backendEgressWeb.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -57,7 +55,6 @@ spec:
         - protocol: TCP
           port: 53
 {{- end }}
-
 {{- if and .Values.networkPolicy.enabled .Values.networkPolicy.backendEgressDb.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
@@ -72,11 +69,17 @@ spec:
     - Egress
   egress:
     - to:
+        {{- if .Values.networkPolicy.backendEgressDb.dbNamespace }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.backendEgressDb.dbNamespace | quote }}
+          podSelector:
+{{ toYaml .Values.networkPolicy.backendEgressDb.dbSelector | indent 12 }}
+        {{- else }}
         - podSelector:
-            {{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
-{{ toYaml . | nindent 12 }}
-            {{- end }}
+{{ toYaml .Values.networkPolicy.backendEgressDb.dbSelector | indent 12 }}
+        {{- end }}
       ports:
         - protocol: TCP
-          port: {{ .Values.networkPolicy.backendEgressDb.dbPort }}
+          port: {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
 {{- end }}
