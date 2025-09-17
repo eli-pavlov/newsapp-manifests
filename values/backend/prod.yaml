@@ -34,6 +34,8 @@ resources:
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
+    NODE_ENV: production
+  value: production
   secretRef: backend-db-connection
 hpa:
   enabled: false
