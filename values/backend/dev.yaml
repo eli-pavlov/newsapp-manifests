@@ -44,6 +44,7 @@ env:
     NODE_ENV: development
   # Name of the Secret which contains DB credentials and other secret envs
   secretRef: backend-db-connection
+  includeAdminKey: false
   # If you set ignoreEnvFrom=true, the template will NOT add envFrom: secretRef
   ignoreEnvFrom: false
   configRef: ""
