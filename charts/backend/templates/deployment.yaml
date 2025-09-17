@@ -109,12 +109,14 @@ spec:
                   name: {{ .Values.env.secretRef | quote }}
                   key: DB_URI
             {{- else }}
+ 
             # Fallback to Postgres bootstrap secret (postgres-credentials) + chart values for host/port/name
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.db.existingSecret.name | quote }}
                   key: {{ .Values.db.existingSecret.userKey | quote }}
+ 
             - name: DB_NAME
               value: {{ .Values.db.dbName | quote }}
             - name: POSTGRES_PASSWORD
@@ -122,15 +124,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.db.existingSecret.name | quote }}
                   key: {{ .Values.db.existingSecret.passwordKey | quote }}
-            - name: DB_HOST
-              {{- if .Values.env.secretRef }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: DB_HOST
-              {{- else }}
-              value: {{ printf "%s.%s.svc.cluster.local" .Values.db.service.name .Release.Namespace | quote }}
-              {{- end }}
 
             - name: DB_PORT
               {{- if .Values.env.secretRef }}
@@ -140,6 +133,16 @@ spec:
                   key: DB_PORT
               {{- else }}
               value: "{{ .Values.db.service.port }}"
+              {{- end }}
+
+            - name: DB_HOST
+              {{- if .Values.env.secretRef }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.env.secretRef | quote }}
+                  key: DB_HOST
+              {{- else }}
+              value: {{ printf "%s.%s.svc.cluster.local" .Values.db.service.name .Release.Namespace | quote }}
               {{- end }}
             {{- end }}
 
