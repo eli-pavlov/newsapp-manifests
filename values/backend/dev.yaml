@@ -1,18 +1,21 @@
-# values/backend/dev.yaml
 app:
   name: backend
   syncWave: "1"
 fullnameOverride: backend
 replicaCount: 2
+
 image:
   repository: elipavlov/newsapp-backend
-  tag: dev-407e434
+  tag: latest-66766bc
   pullPolicy: IfNotPresent
+
 service:
   type: ClusterIP
   port: 3000
+
 nodeSelector:
   role: application
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -24,6 +27,7 @@ affinity:
                 operator: In
                 values: ["backend"]
           topologyKey: kubernetes.io/hostname
+
 resources:
   requests:
     cpu: 100m
@@ -31,19 +35,15 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-# Plain env vars (safe to be in values for dev)
+
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
-    NODE_ENV: development
-  # Name of the Secret which contains DB credentials and other secret envs
   secretRef: backend-db-connection
-  includeAdminKey: false
-  # If you set ignoreEnvFrom=true, the template will NOT add envFrom: secretRef
-  ignoreEnvFrom: false
-  configRef: ""
+
 hpa:
   enabled: false
+
 db:
   enabled: true
   service:
@@ -51,7 +51,7 @@ db:
     port: 5432
     type: ClusterIP
   dbName: newsdb_dev
-  nodeSelector: {role: database}
+  nodeSelector: { role: database }
   tolerations:
     - key: "role"
       operator: "Equal"
@@ -64,18 +64,6 @@ db:
   storage:
     size: 10Gi
     storageClassName: "local-db-dev"
-  # enable the initContainer wait-for-db
-  waitForDB:
-    enabled: true
 networkPolicy:
   backendEgressWeb:
     enabled: true
-    exceptCidrs: []
-    ports: [80, 443]
-  backendEgressDb:
-    enabled: true
-    # explicit selector to match postgres pods in dev namespace
-    dbSelector:
-      matchLabels:
-        app.kubernetes.io/name: postgresql-dev
-    dbPort: 5432

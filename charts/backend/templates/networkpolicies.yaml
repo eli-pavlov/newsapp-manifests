@@ -76,16 +76,11 @@ spec:
     - Egress
   egress:
     - to:
-        {{- /* If user supplied a dbSelector in values, render that. Otherwise use fallback to db.service.name */}}
-        {{- if .Values.networkPolicy.backendEgressDb.dbSelector }}
         - podSelector:
-{{ toYaml .Values.networkPolicy.backendEgressDb.dbSelector | indent 12 }}
-        {{- else }}
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ .Values.db.service.name | default "postgresql" | quote }}
-        {{- end }}
+{{- with .Values.networkPolicy.backendEgressDb.dbSelector }}
+{{ toYaml . | nindent 12 }}
+{{- end }}
       ports:
         - protocol: TCP
-          port: {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
+          port: {{ .Values.networkPolicy.backendEgressDb.dbPort }}
 {{- end }}

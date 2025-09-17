@@ -37,67 +37,6 @@ spec:
       affinity:
 {{ toYaml . | indent 8 }}
       {{- end }}
-
-      {{- /* Optional initContainer to wait for DB readiness */ -}}
-      {{- if .Values.db.waitForDB.enabled }}
-      initContainers:
-        - name: wait-for-db
-          image: "postgres:15-alpine"
-          imagePullPolicy: IfNotPresent
-          env:
-            # Prefer credentials from backend secretRef (if you configured backend-db-connection with keys),
-            # otherwise fall back to the postgres existingSecret (bootstrap creates postgres-credentials).
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ if .Values.env.secretRef }}{{ .Values.env.secretRef | quote }}{{ else }}{{ .Values.db.existingSecret.name | quote }}{{ end }}
-                  key: {{ if .Values.env.secretRef }}"POSTGRES_PASSWORD"{{ else }}{{ .Values.db.existingSecret.passwordKey | quote }}{{ end }}
-            - name: DB_USER
-              {{- if .Values.env.secretRef }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: "DB_USER"
-              {{- else }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.db.existingSecret.name | quote }}
-                  key: {{ .Values.db.existingSecret.userKey | quote }}
-              {{- end }}
-            - name: DB_NAME
-              value: {{ .Values.db.dbName | quote }}
-              
-            - name: DB_PORT
-              {{- if .Values.env.secretRef }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: DB_PORT
-              {{- else }}
-              value: "{{ .Values.db.service.port }}"
-              {{- end }}
-
-            - name: DB_HOST
-              {{- if .Values.env.secretRef }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: DB_HOST
-              {{- else }}
-              value: {{ printf "%s.%s.svc.cluster.local" .Values.db.service.name .Release.Namespace | quote }}
-              {{- end }}
-          command:
-            - sh
-            - -c
-            - |
-              echo "$(date -Is) wait-for-db: waiting for ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-              until psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; do
-                echo "$(date -Is) wait-for-db: db not ready, sleeping 2s..."
-                sleep 2
-              done
-              echo "$(date -Is) wait-for-db: db is ready"
-      {{- end }}
-
       containers:
         - name: {{ include "backend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -110,122 +49,71 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-
-            {{- /* plain envs from values.env.plain */ -}}
             {{- range $k, $v := .Values.env.plain }}
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
-
-            {{- /* explicit secret-backed env(s) - prefer only DB_URI explicitly */ -}}
-            {{- if .Values.env.secretRef }}
-            - name: DB_URI
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: DB_URI
-            {{- else }}
- 
-            # Fallback to Postgres bootstrap secret (postgres-credentials) + chart values for host/port/name
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.db.existingSecret.name | quote }}
-                  key: {{ .Values.db.existingSecret.userKey | quote }}
- 
-            - name: DB_NAME
-              value: {{ .Values.db.dbName | quote }}
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.db.existingSecret.name | quote }}
-                  key: {{ .Values.db.existingSecret.passwordKey | quote }}
-
-            - name: DB_PORT
-              {{- if .Values.env.secretRef }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: DB_PORT
-              {{- else }}
-              value: "{{ .Values.db.service.port }}"
-              {{- end }}
-
-            - name: DB_HOST
-              {{- if .Values.env.secretRef }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.env.secretRef | quote }}
-                  key: DB_HOST
-              {{- else }}
-              value: {{ printf "%s.%s.svc.cluster.local" .Values.db.service.name .Release.Namespace | quote }}
-              {{- end }}
-            {{- end }}
-
-          {{- /* Keep envFrom for convenience, but guardable via values.ignoreEnvFrom */ -}}
           {{- if or .Values.env.secretRef .Values.env.configRef }}
           envFrom:
             {{- if .Values.env.configRef }}
             - configMapRef: { name: {{ .Values.env.configRef }} }
             {{- end }}
-            {{- if and (not .Values.ignoreEnvFrom) .Values.env.secretRef }}
+            {{- if .Values.env.secretRef }}
             - secretRef: { name: {{ .Values.env.secretRef }} }
             {{- end }}
           {{- end }}
-
           resources:
 {{ toYaml .Values.resources | indent 12 }}
 
-          {{- /* readiness probe */ -}}
-          {{- with .Values.probes.readiness }}
+          {{- with .Values.probes }}
+          {{- if .readiness.enabled }}
           readinessProbe:
-            {{- if eq (.type | default "http") "http" }}
+            {{- if eq (.readiness.type | default "http") "http" }}
             httpGet:
-              path: {{ .path | quote }}
+              path: {{ .readiness.path | quote }}
               port: {{ $.Values.service.port }}
-              scheme: {{ .scheme | default "HTTP" }}
+              scheme: {{ .readiness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .port | default $.Values.service.port }}
+              port: {{ .readiness.port | default $.Values.service.port }}
             {{- end }}
-            initialDelaySeconds: {{ .initialDelaySeconds | default 5 }}
-            periodSeconds: {{ .periodSeconds | default 10 }}
-            timeoutSeconds: {{ .timeoutSeconds | default 2 }}
-            successThreshold: {{ .successThreshold | default 1 }}
-            failureThreshold: {{ .failureThreshold | default 3 }}
+            initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .readiness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .readiness.failureThreshold | default 3 }}
           {{- end }}
 
-          {{- /* liveness probe */ -}}
-          {{- with .Values.probes.liveness }}
+          {{- if .liveness.enabled }}
           livenessProbe:
-            {{- if eq (.type | default "http") "http" }}
+            {{- if eq (.liveness.type | default "http") "http" }}
             httpGet:
-              path: {{ .path | quote }}
+              path: {{ .liveness.path | quote }}
               port: {{ $.Values.service.port }}
-              scheme: {{ .scheme | default "HTTP" }}
+              scheme: {{ .liveness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .port | default $.Values.service.port }}
+              port: {{ .liveness.port | default $.Values.service.port }}
             {{- end }}
-            initialDelaySeconds: {{ .initialDelaySeconds | default 30 }}
-            periodSeconds: {{ .periodSeconds | default 10 }}
-            timeoutSeconds: {{ .timeoutSeconds | default 2 }}
-            successThreshold: {{ .successThreshold | default 1 }}
-            failureThreshold: {{ .failureThreshold | default 6 }}
+            initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .liveness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .liveness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .liveness.successThreshold | default 1 }}
+            failureThreshold: {{ .liveness.failureThreshold | default 6 }}
           {{- end }}
 
-          {{- /* startup probe (optional) */ -}}
-          {{- if and .Values.probes.startup.enabled }}
+          {{- if and .startup .startup.enabled }}
           startupProbe:
-            {{- if eq (.Values.probes.startup.type | default "http") "http" }}
+            {{- if eq (.startup.type | default "http") "http" }}
             httpGet:
-              path: {{ .Values.probes.startup.path | quote }}
+              path: {{ .startup.path | quote }}
               port: {{ $.Values.service.port }}
-              scheme: {{ .Values.probes.startup.scheme | default "HTTP" }}
+              scheme: {{ .startup.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .Values.probes.startup.port | default $.Values.service.port }}
+              port: {{ .startup.port | default $.Values.service.port }}
             {{- end }}
-            periodSeconds: {{ .Values.probes.startup.periodSeconds | default 5 }}
-            failureThreshold: {{ .Values.probes.startup.failureThreshold | default 30 }}
+            periodSeconds: {{ .startup.periodSeconds | default 5 }}
+            failureThreshold: {{ .startup.failureThreshold | default 30 }}
+          {{- end }}
           {{- end }}

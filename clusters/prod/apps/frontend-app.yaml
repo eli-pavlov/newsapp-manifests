@@ -6,7 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
-  project: newsapp-prod
+  project: default
   source:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main
