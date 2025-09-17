@@ -45,3 +45,36 @@ spec:
   issuerRef:
     name: letsencrypt-staging
     kind: ClusterIssuer
+---
+# Cert for db (dev)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-newsapp-db-dev-weblightenment-com
+  namespace: development
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: newsapp-db-dev-tls
+  dnsNames:
+    - dbdev.weblightenment.com
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+---
+# Cert for db (prod)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-newsapp-db-prod-weblightenment-com
+  namespace: development
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: newsapp-db-prod-tls
+  dnsNames:
+    - dbprod.weblightenment.com
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+
