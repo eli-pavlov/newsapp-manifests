@@ -16,7 +16,7 @@ spec:
         - ../../values/frontend/dev.yaml
       values: |
         ingress:
-          certManagerClusterIssuer: letsencrypt-dns01-cloudflare
+          certManagerClusterIssuer: letsencrypt-staging
   destination:
     server: https://kubernetes.default.svc
     namespace: development
