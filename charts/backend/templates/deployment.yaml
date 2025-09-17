@@ -57,7 +57,7 @@ spec:
                 sleep 5
               done
               echo "DB timeout after 5 min"
-              exit 1 
+              exit 1
           resources:
             limits:
               cpu: 100m
