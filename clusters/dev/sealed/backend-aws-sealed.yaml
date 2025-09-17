@@ -4,7 +4,7 @@ metadata:
   name: backend-aws
   namespace: development
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   encryptedData:
     AWS_ACCESS_KEY_ID: AgBiMSOyCaEMI5KZx1kPanh3wd9TvvBxbRLyC1lOaH59Xn/IQssH4UoRNhQOXR60HCyYWiBpmYUNSoxfExiSBOSIQbSfghLeTMxgKy9lLcELCTGMzXMBHrVkAdGGKX0cgO9Z7n+NrB+PqsLr4+21qNiZ6EOSBXUAvkV6GzDOB/gfzpm6qjXXSQpxdykYXEuhPPnkMxTyO4+u61sW2RT/ZG7Yr7AJ42p2vhM9MujLRxzPlitfZ204yjrWbmZomw+/oMFNGCUcPtc1FJF2b5aVG6ci8ymfs0YXveH81LaTaKofqTsdIwetjazb5W8Ud5PiHjrah+KcSSqcar1TIJ/R3CcOI0hcZNcSu5hmsqi0Zal6AZ7z/iAhgoyGu1J9DaNSBYODIdInICOxFxgCnIFKSOD87QcWQqMXNlIWOhyjdQYlk53SHNSnunev9+U5hSfxR6it/PcAGy6H1cEriEv6hptUw6e1zVP1idIt2g4rBMYVEOgvvO38VkRvpXPwwAh+2O1qWf+epSVYvsm0iSEseOt6z9h6PjPOZJZ8PG9w4wuzdOYxcG9kq/3EAYm+D6co1LQEd3/vCARd4+eyXUQy74UJQzfG7P5LYByPuBUaST+DRyUzDLqub7uyYJEdgTRZ1PBFAlUIYE5vV6xe5n5PHzbrAyFh1CLfbyRIprxt1Jux9JBwlqeKlhlJ4TCcOSJYusXvuQIMQ386oxRZGOpkpuZkIVuC6w==
