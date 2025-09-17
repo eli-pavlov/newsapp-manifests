@@ -37,6 +37,16 @@ spec:
       affinity:
 {{ toYaml . | indent 8 }}
       {{- end }}
+      initContainers: 
+          image: postgres:17-alpine
+          command: ['sh', '-c', 'until pg_isready -h postgresql-dev-client -p 5432; do echo "Waiting for DB..."; sleep 5; done']
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
       containers:
         - name: {{ include "backend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -64,7 +74,6 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
-
           {{- with .Values.probes }}
           {{- if .readiness.enabled }}
           readinessProbe:
@@ -83,7 +92,6 @@ spec:
             successThreshold: {{ .readiness.successThreshold | default 1 }}
             failureThreshold: {{ .readiness.failureThreshold | default 3 }}
           {{- end }}
-
           {{- if .liveness.enabled }}
           livenessProbe:
             {{- if eq (.liveness.type | default "http") "http" }}
@@ -101,7 +109,6 @@ spec:
             successThreshold: {{ .liveness.successThreshold | default 1 }}
             failureThreshold: {{ .liveness.failureThreshold | default 6 }}
           {{- end }}
-
           {{- if and .startup .startup.enabled }}
           startupProbe:
             {{- if eq (.startup.type | default "http") "http" }}
