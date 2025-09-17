@@ -37,6 +37,13 @@ spec:
       affinity:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
+      {{- /* Compute DB-related template variables outside the literal block to avoid breaking YAML */ -}}
+      {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict }}
+      {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" }}
+      {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}
+      {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
+
       initContainers:
         - name: wait-for-db
           image: postgres:17-alpine
@@ -44,12 +51,7 @@ spec:
             - sh
             - -c
             - |
-              {{- /* capture safe defaults with whitespace trimming */ -}}
-              {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict -}}
-              {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" -}}
-              {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" -}}
-              {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 -}}
-
+              #!/bin/sh
               i=0
               while [ $i -lt 60 ]; do
                 i=$((i + 1))
@@ -70,6 +72,7 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
+
       containers:
         - name: {{ include "backend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -137,7 +140,7 @@ spec:
             {{- if eq (.startup.type | default "http") "http" }}
             httpGet:
               path: {{ .startup.path | quote }}
-              port: {{ $.Values.service.port }}
+              port: {{ .Values.service.port }}
               scheme: {{ .startup.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
