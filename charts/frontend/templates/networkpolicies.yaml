@@ -10,6 +10,9 @@ spec:
   policyTypes: ["Ingress"]
   ingress:
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: ingress-nginx
@@ -28,6 +31,9 @@ spec:
   policyTypes: ["Ingress"]
   ingress:
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: ingress-nginx
