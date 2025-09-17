@@ -23,11 +23,10 @@ spec:
               service:
                 name: {{ include "frontend.fullname" $ }}
                 port:
-                  number: {{ .Values.service.port }}
+                  number: {{ $.Values.service.port }}
           {{- end }}
     {{- end }}
   {{- with .Values.ingress.tls }}
   tls:
 {{ toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
+  {{- e
