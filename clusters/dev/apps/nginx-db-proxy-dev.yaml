@@ -1,19 +1,29 @@
-# --- replace the ConfigMap + DaemonSet in clusters/dev/apps/nginx-db-proxy-dev.yaml ---
+# nginx-pg-proxy-dev.yaml
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nginx-pg-proxy-config
   namespace: development
 data:
+  # template — we will render the actual resolver IP at container startup
   nginx.conf.tpl: |
     worker_processes  1;
     error_log  /var/log/nginx/error.log warn;
     pid /var/run/nginx.pid;
 
-    events { worker_connections 1024; }
+    events {
+      worker_connections  1024;
+    }
 
     stream {
+      # resolver placeholder will be replaced at startup with the cluster DNS IP
       resolver {{RESOLVER}} valid=30s;
+
+      upstream pg_dev_upstream {
+        # use "resolve" so nginx performs runtime DNS resolution (avoids fatal parse-time failure)
+        server postgresql-dev.development.svc.cluster.local:5432 resolve;
+      }
 
       server {
         listen 5433 ssl;
@@ -22,9 +32,8 @@ data:
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        set $pg_backend "postgresql-dev.development.svc.cluster.local:5432";
-        proxy_pass $pg_backend;
-        proxy_timeout 5m;
+        proxy_pass pg_dev_upstream;
+        proxy_timeout  5m;
         proxy_connect_timeout 30s;
       }
     }
@@ -52,19 +61,24 @@ spec:
       containers:
         - name: nginx
           image: nginx:1.25-alpine
+          # override command to render template at startup then exec nginx
           command:
             - /bin/sh
             - -c
+          args:
             - |
-              set -e
-              NS=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf || true)
+              # pick the first nameserver from /etc/resolv.conf (works in k8s pods)
+              NS="$(awk '/nameserver/ {print $2; exit}' /etc/resolv.conf || true)"
               if [ -z "$NS" ]; then
-                echo "No nameserver found" >&2
+                echo "No nameserver found in /etc/resolv.conf, aborting"
                 exit 1
               fi
+              echo "Using DNS resolver: $NS"
+              # replace placeholder and write final config
               sed "s#{{RESOLVER}}#${NS}#g" /etc/nginx/nginx.conf.tpl > /etc/nginx/nginx.conf
-              echo "Rendered nginx.conf with resolver ${NS}"
-              exec nginx -g 'daemon off;'
+              echo "Rendered /etc/nginx/nginx.conf:"
+              sed -n '1,200p' /etc/nginx/nginx.conf
+              exec nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
           ports:
             - containerPort: 5433
               hostPort: 5433
