@@ -1,5 +1,4 @@
-# nginx-pg-proxy-dev.yaml
----
+# --- replace the ConfigMap + DaemonSet in clusters/dev/apps/nginx-db-proxy-dev.yaml ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,12 +10,9 @@ data:
     error_log  /var/log/nginx/error.log warn;
     pid /var/run/nginx.pid;
 
-    events {
-      worker_connections  1024;
-    }
+    events { worker_connections 1024; }
 
     stream {
-      # resolver will be injected at pod start ({{RESOLVER}} placeholder)
       resolver {{RESOLVER}} valid=30s;
 
       server {
@@ -26,11 +22,9 @@ data:
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        # use a variable so DNS is resolved at runtime (requires 'resolver' above)
         set $pg_backend "postgresql-dev.development.svc.cluster.local:5432";
         proxy_pass $pg_backend;
-
-        proxy_timeout  5m;
+        proxy_timeout 5m;
         proxy_connect_timeout 30s;
       }
     }
@@ -58,22 +52,19 @@ spec:
       containers:
         - name: nginx
           image: nginx:1.25-alpine
-          # command renders template and then starts nginx
           command:
             - /bin/sh
             - -c
             - |
               set -e
-              # extract first nameserver from resolv.conf
               NS=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf || true)
               if [ -z "$NS" ]; then
-                echo "No nameserver found in /etc/resolv.conf - aborting" >&2
+                echo "No nameserver found" >&2
                 exit 1
               fi
-              # render template (replace placeholder with actual nameserver)
-              sed "s/{{RESOLVER}}/$NS/g" /etc/nginx/nginx.conf.tpl > /etc/nginx/nginx.conf
-              echo "Rendered /etc/nginx/nginx.conf with resolver $NS"
-              exec nginx -g "daemon off;"
+              sed "s#{{RESOLVER}}#${NS}#g" /etc/nginx/nginx.conf.tpl > /etc/nginx/nginx.conf
+              echo "Rendered nginx.conf with resolver ${NS}"
+              exec nginx -g 'daemon off;'
           ports:
             - containerPort: 5433
               hostPort: 5433
