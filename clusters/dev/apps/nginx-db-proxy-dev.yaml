@@ -21,7 +21,7 @@ data:
 
       server {
         # FIX: Listen on port 5433 to avoid conflict with Postgres on 5432
-        listen 5433 ssl;
+        listen 5432 ssl;
         ssl_certificate /etc/nginx/tls/dbdev/tls.crt;
         ssl_certificate_key /etc/nginx/tls/dbdev/tls.key;
         ssl_protocols TLSv1.2 TLSv1.3;
