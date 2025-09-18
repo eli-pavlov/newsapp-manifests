@@ -1,4 +1,4 @@
-# nginx-pg-proxy-dev.yaml
+# clusters/dev/apps/nginx-db-proxy-dev.yaml
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -8,7 +8,7 @@ metadata:
   annotations:
     argocd.argoproj.io/tracking-id: newsapp-master-app:/ConfigMap:development/nginx-pg-proxy-config
 data:
-  nginx.conf.tpl: |
+  nginx.conf: |
     worker_processes  1;
     error_log  /var/log/nginx/error.log warn;
     pid /var/run/nginx.pid;
@@ -16,18 +16,19 @@ data:
     events { worker_connections 1024; }
 
     stream {
-      resolver {{RESOLVER}} valid=30s;
-
-      set $pg_backend "postgresql-dev.development.svc.cluster.local:5432";
+      # Use Kubernetes's internal DNS for runtime resolution
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
 
       server {
+        # FIX: Listen on port 5433 to avoid conflict with Postgres on 5432
         listen 5433 ssl;
         ssl_certificate /etc/nginx/tls/dbdev/tls.crt;
         ssl_certificate_key /etc/nginx/tls/dbdev/tls.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        proxy_pass $pg_backend;
+        # Forward traffic to the actual database on port 5432
+        proxy_pass postgresql-dev.development.svc.cluster.local:5432;
         proxy_timeout 5m;
         proxy_connect_timeout 30s;
       }
@@ -61,13 +62,14 @@ spec:
           image: nginx:1.25-alpine
           args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
           ports:
-            - containerPort: 5432
-              hostPort: 5432
+            # FIX: Expose the container and host port 5433
+            - containerPort: 5433
+              hostPort: 5433
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /etc/nginx/nginx.conf.tpl
-              subPath: nginx.conf.tpl
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
             - name: tls-dbdev
               mountPath: /etc/nginx/tls/dbdev
               readOnly: true
@@ -78,8 +80,8 @@ spec:
           configMap:
             name: nginx-pg-proxy-config
             items:
-              - key: nginx.conf.tpl
-                path: nginx.conf.tpl
+              - key: nginx.conf
+                path: nginx.conf
         - name: tls-dbdev
           secret:
             secretName: newsapp-db-dev-tls
