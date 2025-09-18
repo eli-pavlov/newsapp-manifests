@@ -1,12 +1,10 @@
-# clusters/dev/apps/nginx-db-proxy-dev.yaml
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nginx-pg-proxy-config
   namespace: development
   annotations:
-    argocd.argoproj.io/tracking-id: newsapp-master-app:/ConfigMap:development/nginx-pg-proxy-config
+    argocd.argoproj.io/sync-wave: "0"
 data:
   nginx.conf: |
     worker_processes  1;
@@ -20,14 +18,14 @@ data:
       resolver kube-dns.kube-system.svc.cluster.local valid=10s;
 
       server {
-        # FIX: Listen on port 5433 to avoid conflict with Postgres on 5432
-        listen 5432 ssl;
+        # FIX: Listen on the container's port 5433 (consistent with prod)
+        listen 5433 ssl;
         ssl_certificate /etc/nginx/tls/dbdev/tls.crt;
         ssl_certificate_key /etc/nginx/tls/dbdev/tls.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        # Forward traffic to the actual database on port 5432
+        # Forward traffic to the development DB service on port 5432
         proxy_pass postgresql-dev.development.svc.cluster.local:5432;
         proxy_timeout 5m;
         proxy_connect_timeout 30s;
@@ -62,9 +60,9 @@ spec:
           image: nginx:1.25-alpine
           args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
           ports:
-            # FIX: Expose the container and host port 5433
+            # FIX: Expose the dev proxy on a unique host port (5434) to avoid conflicts
             - containerPort: 5433
-              hostPort: 5433
+              hostPort: 5434
               protocol: TCP
           volumeMounts:
             - name: config
