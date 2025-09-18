@@ -72,8 +72,8 @@ spec:
           args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
           ports:
             # FIX: Expose the correct SSL port (5433)
-            - containerPort: 5433
-              hostPort: 5433
+            - containerPort: 5432
+              hostPort: 5432
               protocol: TCP
           volumeMounts:
             - name: config
