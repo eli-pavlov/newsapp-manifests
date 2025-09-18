@@ -36,6 +36,11 @@ env:
     DB_ENGINE_TYPE: "POSTGRES"
   secretRefs:
     - backend-db-connection
+    - aws-storage-type
+    - aws-swecret-access-key
+    - aws-access-key-id
+    - aws-region
+    - aws-bucket
 hpa:
   enabled: false
 networkPolicy:
