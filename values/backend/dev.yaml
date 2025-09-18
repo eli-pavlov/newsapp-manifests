@@ -36,7 +36,7 @@ env:
   secretRefs:
     - backend-db-connection
     - aws-storage-type
-    - aws-swecret-access-key
+    - aws-secret-access-key
     - aws-access-key-id
     - aws-region
     - aws-bucket
