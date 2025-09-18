@@ -6,7 +6,7 @@ metadata:
   name: nginx-pg-proxy-config
   namespace: development
 data:
-  nginx.conf: |
+  nginx.conf.tpl: |
     worker_processes  1;
     error_log  /var/log/nginx/error.log warn;
     pid /var/run/nginx.pid;
@@ -16,11 +16,9 @@ data:
     }
 
     stream {
-      # Kubernetes cluster DNS (replace with your kube-dns/CoreDNS IP if different)
-      resolver 10.43.0.10 valid=30s;
-      resolver_timeout 5s;
+      # resolver will be injected at pod start ({{RESOLVER}} placeholder)
+      resolver {{RESOLVER}} valid=30s;
 
-      # Use runtime name resolution (avoid 'upstream' with static DNS at startup)
       server {
         listen 5433 ssl;
         ssl_certificate /etc/nginx/tls/dbdev/tls.crt;
@@ -28,11 +26,9 @@ data:
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        # Resolve this name at connection time
-        set $pg_upstream "postgresql-dev.development.svc.cluster.local:5432";
-
-        # proxy_pass to a variable forces nginx to resolve host at connect time
-        proxy_pass $pg_upstream;
+        # use a variable so DNS is resolved at runtime (requires 'resolver' above)
+        set $pg_backend "postgresql-dev.development.svc.cluster.local:5432";
+        proxy_pass $pg_backend;
 
         proxy_timeout  5m;
         proxy_connect_timeout 30s;
@@ -62,15 +58,30 @@ spec:
       containers:
         - name: nginx
           image: nginx:1.25-alpine
-          args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
+          # command renders template and then starts nginx
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              # extract first nameserver from resolv.conf
+              NS=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf || true)
+              if [ -z "$NS" ]; then
+                echo "No nameserver found in /etc/resolv.conf - aborting" >&2
+                exit 1
+              fi
+              # render template (replace placeholder with actual nameserver)
+              sed "s/{{RESOLVER}}/$NS/g" /etc/nginx/nginx.conf.tpl > /etc/nginx/nginx.conf
+              echo "Rendered /etc/nginx/nginx.conf with resolver $NS"
+              exec nginx -g "daemon off;"
           ports:
             - containerPort: 5433
               hostPort: 5433
               protocol: TCP
           volumeMounts:
             - name: config
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
+              mountPath: /etc/nginx/nginx.conf.tpl
+              subPath: nginx.conf.tpl
             - name: tls-dbdev
               mountPath: /etc/nginx/tls/dbdev
               readOnly: true
@@ -81,8 +92,8 @@ spec:
           configMap:
             name: nginx-pg-proxy-config
             items:
-              - key: nginx.conf
-                path: nginx.conf
+              - key: nginx.conf.tpl
+                path: nginx.conf.tpl
         - name: tls-dbdev
           secret:
             secretName: newsapp-db-dev-tls
