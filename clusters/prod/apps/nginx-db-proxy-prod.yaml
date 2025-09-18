@@ -1,10 +1,14 @@
-# nginx-pg-proxy-prod.yaml
+# clusters/dev/apps/nginx-db-proxy-dev.yaml
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nginx-pg-proxy-config
-  namespace: default
+  namespace: development
+  annotations:
+    # keep history/tracking for ArgoCD; ensure sync order by setting a higher wave than the postgres app
+    argocd.argoproj.io/tracking-id: newsapp-master-app:/ConfigMap:development/nginx-pg-proxy-config
+    argocd.argoproj.io/sync-wave: "0"
 data:
   nginx.conf: |
     worker_processes  1;
@@ -16,19 +20,20 @@ data:
     }
 
     stream {
-      upstream pg_prod_upstream {
-        # The Postgres client service (prod) in the default namespace
-        server postgresql.default.svc.cluster.local:5432;
+      # static upstream (resolved at nginx start). Works if Postgres service exists by that time.
+      upstream pg_dev_upstream {
+        # The Postgres client service (dev) in the development namespace
+        server postgresql-dev.development.svc.cluster.local:5432;
       }
 
       server {
-        listen 5432 ssl;
-        ssl_certificate /etc/nginx/tls/dbprod/tls.crt;
-        ssl_certificate_key /etc/nginx/tls/dbprod/tls.key;
+        listen 5433 ssl;
+        ssl_certificate /etc/nginx/tls/dbdev/tls.crt;
+        ssl_certificate_key /etc/nginx/tls/dbdev/tls.key;
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        proxy_pass pg_prod_upstream;
+        proxy_pass pg_dev_upstream;
         proxy_timeout  5m;
         proxy_connect_timeout 30s;
       }
@@ -38,7 +43,10 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: nginx-pg-proxy
-  namespace: default
+  namespace: development
+  labels:
+    app: nginx-pg-proxy
+    purpose: pg-proxy
 spec:
   selector:
     matchLabels:
@@ -50,7 +58,6 @@ spec:
         app: nginx-pg-proxy
         purpose: pg-proxy
     spec:
-      # run only on DB node(s)
       nodeSelector:
         role: database
       tolerations:
@@ -67,11 +74,10 @@ spec:
             - name: config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
-            - name: tls-dbprod
-              mountPath: /etc/nginx/tls/dbprod
+            - name: tls-dbdev
+              mountPath: /etc/nginx/tls/dbdev
               readOnly: true
           securityContext:
-            # root needed for listening on host ports (adjust if cluster policies forbid)
             runAsUser: 0
       volumes:
         - name: config
@@ -80,6 +86,8 @@ spec:
             items:
               - key: nginx.conf
                 path: nginx.conf
-        - name: tls-dbprod
+        - name: tls-dbdev
           secret:
-            secretName: newsapp-db-prod-tls
+            secretName: newsapp-db-dev-tls
+  updateStrategy:
+    type: RollingUpdate
