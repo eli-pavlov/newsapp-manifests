@@ -35,7 +35,6 @@ env:
     DB_ENGINE_TYPE: "POSTGRES"
   secretRefs:
     - backend-db-connection
-    - backend-aws
 hpa:
   enabled: false
 networkPolicy:
