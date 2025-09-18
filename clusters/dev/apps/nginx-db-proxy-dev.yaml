@@ -61,8 +61,8 @@ spec:
           image: nginx:1.25-alpine
           args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
           ports:
-            - containerPort: 5433
-              hostPort: 5433
+            - containerPort: 5432
+              hostPort: 5432
               protocol: TCP
           volumeMounts:
             - name: config
