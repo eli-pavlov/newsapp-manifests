@@ -40,6 +40,12 @@ env:
     - aws-access-key-id
     - aws-region
     - aws-bucket
+    - db-name
+    - db-user
+    - db-password
+    - db-host
+    - db-port
+    - db-protocol
 hpa:
   enabled: false
 networkPolicy:
