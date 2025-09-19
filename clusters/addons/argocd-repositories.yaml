@@ -26,3 +26,18 @@ stringData:
   type: helm
   name: jetstack
   url: https://charts.jetstack.io
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sealed-secrets-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: sealed-secrets
+  url: https://bitnami-labs.github.io/sealed-secrets
