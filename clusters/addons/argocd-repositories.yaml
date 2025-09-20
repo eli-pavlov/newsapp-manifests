@@ -19,7 +19,7 @@ metadata:
   name: jetstack-helm
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-3"
+    argocd.argoproj.io/sync-wave: "-100"
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
@@ -34,7 +34,7 @@ metadata:
   name: sealed-secrets-helm
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-5"
+    argocd.argoproj.io/sync-wave: "-100"
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:

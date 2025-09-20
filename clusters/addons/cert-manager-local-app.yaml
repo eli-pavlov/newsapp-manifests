@@ -4,6 +4,7 @@ metadata:
   name: cert-manager-local
   namespace: argocd
   annotations:
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
     argocd.argoproj.io/sync-wave: "-80"
 spec:
   project: default

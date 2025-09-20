@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cert-manager
   annotations:
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
     argocd.argoproj.io/sync-wave: "-90"
 spec:
   project: default
