@@ -4,6 +4,11 @@ kind: SealedSecret
 metadata:
   name: aws-access-key-id
   namespace: default
+  annotations:
+    # Ensure this app waits for the other two apps to be Healthy
+    argocd.argoproj.io/depends-on: '["cert-manager-helm", "cert-manager-local"]'
+    # optional: keep this later in the overall ordering
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   encryptedData:
     AWS_ACCESS_KEY_ID: AgAoEFdpnD6knGcV4rGVuZD7ic+JfI4kMdh5DL82PGNTkDKSjfkxEWpHP+YPdv3/xTfIKGc4PgtmkOrFOFquh5MJs5XNySwtRKnwilaWpKJf+r/8icK+uoVk7I/5DYDmPZ9bEJrnOZX1GLHAXMcscWTGOOFvuzQvYtGdVq2C5sTERD2MYfeIAhDk948s5qc6G+HrqoJRY9BpYrao64wWe3ruPVuMt9ky/FQGgdBNeKRYMYN8WJhys5rfmOC8iK6gp0JDuqf9+IXvvQijNeJW7sGmrxhTHV1kb8fany6kl2nvOUws+Nlp2kO0NZ9HT7Vq7wqTyFdDd64dgHG6JofS5p1ipyzGyBmbgIXbMGV7Auus4lecA9y9BFfJUvQOkqYPwgVdFt6jDMIHWtmN3UD0rEUmbGUE/oHqkKOnML3IIaXorwy1wM1xsbZ1KomYGHJ16VuaU1d1Kb1AwmDX90q3evnTvSlf1XvT0spzHQGCG8MD3XIkH9xlMx4jNaehFDAdtit/U382edrr1gvBEzSbIkUDCEzfhFXrurPQoMbeyav+H10ueClMB9zBaU8Ru54zUcgWmoI17tuQv38PFt5UszGFfHqrRNtPd9YFGKM4CXaMKSZLDNc0oYAAtdM1FL9lv3284+7IvZsP0Ipz2OSkkPL+FtE7sXzrBvB8zVqGf0BpNF/IF31s7qpGXK4dIcMMAfwOtNSiVZVcIWkI/qmjWSJmZaW4rw==

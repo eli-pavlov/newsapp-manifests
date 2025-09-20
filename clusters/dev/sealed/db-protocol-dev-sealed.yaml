@@ -4,6 +4,11 @@ kind: SealedSecret
 metadata:
   name: db-protocol
   namespace: development
+  annotations:
+    # Ensure this app waits for the other two apps to be Healthy
+    argocd.argoproj.io/depends-on: '["cert-manager-helm", "cert-manager-local"]'
+    # optional: keep this later in the overall ordering
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   encryptedData:
     DB_PROTOCOL: AgCjHaeKZNHk2Mqx+lmwCPJ1x5O4keJQmHp5norDMaHUg5uuf4m8Cw9YmD9uk4w6gzEO0hO19ALJ/XDk8Escru8Vekcv/CiFVq6G7upcvZjqsVOob0ADKf9d8d8wI3CsCKyBmXbF+EZQFsz3vr6QgQ+Mgc/pC2pZsantqadOacAGcHDf6f83n0eboLvEcuT9ikYDVlKI1UUZYk3aHzCrOJWwvHOpylq1vtLBQrkGTTol0mELQ8/FWcT3LZrbUjnuq6bHoq6B1t8i7asRHNG50NgNI68Gvw/a62HJKq318nfF1L7lCI3NjltwlfaA/pX2oJ/8yUyluK8wp+1/nAu/haiBTtZmxgz6GQATRvZvaw3voZE37V0ly9wlTSi3jyKhmBgGPpdyeXdYUL4fUm+HJRfPwNhJrZIe4kX3u2s929f2nvKrFiavJbG6hnhJC2YGbaDMMhkOS+tvxOYqeOxMhJuNHCgRGwDUO11ah3ahnr7O9xYylXY04peyCcli/Mi8JJLQ5tNJEuG7Rrb4laOOBE0crXf5URXAlYRd0C759v1CrUjlJOS0PzXDVKrxQe7zNXXhmf7xqmVZ2GS/26x/+VZkupYyeddvUDRizXG8At0KYKtLYNH/GodKErfIb6ZZM01lyfyLG3uUzaEWz7AtXG2gI1csexOq5Eh7dzSBXcc+wCQGM+G39a5l/352qcPazehPo9IeFGvATnla

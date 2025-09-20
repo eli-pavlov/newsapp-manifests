@@ -4,6 +4,11 @@ kind: SealedSecret
 metadata:
   name: db-port
   namespace: default
+  annotations:
+    # Ensure this app waits for the other two apps to be Healthy
+    argocd.argoproj.io/depends-on: '["cert-manager-helm", "cert-manager-local"]'
+    # optional: keep this later in the overall ordering
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   encryptedData:
     DB_PORT: AgBf3YzdkL+m6cbhKCJUj87lN+Y8MLcIz1VlbxBKNL/F/Bextp873BjcVRMUnyIswiCzDhUD1mM2ATQ1azGr32My2wA8JJ2nBV9cnvXhH6Da6pkL7zynERqFc/HCnSAC8UgUNJH8dBe3xYbqPwpMxQDn9BsqrKsZQQPIY9vhsyz69k3ofbzJ2gVa6DjXkAWdBEcDnsKBcAaNTfi7UX4luuiRbKU/AQUSLhEdfe4sauPhlbxTfQQOKgpaCGXhDLiHqhiRhKEObIPQc4i7xGRATMiFQMWmtI8d/z2u1I3ikmCeEEzovewIvotQiteOgf5ZIQbRNnW7YilTxS/LIZsW6yskD05TgsViGYUKdixbSLZZCuif6s29v/dEKZuuOwIDmUCKWDNLXz2ir9XyVv1Ndy0C1AZjcAIOj2CAVVT7LSz3/3HNiZ3bqzUVX8bTF459GBS31ffPCLuI19hUUzGYFRMqd+3+tcE287rFdHQi2/vIVykBMAYHYPB/b7Vr+uGnGs4/p2IDFgV7K9XsI0HdlL6Oc/vCriPsqVUXbFvzRIhJSEjFvh9QwnLbLo/7cNio7PyqkZbUT8ZEAOi60lE0f+ngn/9ShJt8oS8c6/av9rLfRlI3cQU8Eu0qiyy44ygwYXKEPZtaFiQFx7w0dcE4ti6mqyCxtdVCTpC4sdPGRjkeAH2Sle+42zIEmiQ/G+4TLrKQ/mwu

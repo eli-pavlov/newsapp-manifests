@@ -4,6 +4,11 @@ kind: SealedSecret
 metadata:
   name: aws-storage-type
   namespace: development
+  annotations:
+    # Ensure this app waits for the other two apps to be Healthy
+    argocd.argoproj.io/depends-on: '["cert-manager-helm", "cert-manager-local"]'
+    # optional: keep this later in the overall ordering
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   encryptedData:
     STORAGE_TYPE: AgAsqgh2ZKWjPWAksMMMtDLUNZjFqyVsnSPhJIMIGexcE4vniVrMYdTS8gUFcuSCjvEziHv1C01ZBtz92vyVleO/b7DwlPBR13+1cywmLUYgzsFuZPGVUi/WwS3sauKK+8coJyxdcufatWULuUlJMDi1ymiqXZLkF2kp/wFdkVABqFraQS4iLzCyWDztPjvDC22ifACCckNKCBNXklrJKsamcPNXIk/wWomoWPebQxxlpRPOP4wHz58yg0YtmzNeJekAtC2EnYrQWdu/do+qxYrU887kfJTHlwWT99y+LHfw0diyQh9mJcrgn7zfcyH2U1RKUJ2VPw9agrpCLH9NwN4dsxU5iOx0XEruxN51TL5VtbGBcy7QYScZekUAhMkmKoKKChDtHpEZL/Z998FOoTWWLWNk3bLbftdY2CY290nFdXdjXEZLWWbxDvMBeilneVlAqSTEi1roNyXYLSEGRuqPpnsKVv72KkkEfWrpqXgJyexeccZVYVfHs+C1+/+vRWnsznMVZPv5xcRKUy17SBL6ldeatxytNATXEfM1ZxybDYXgwNulYXSMu/ABcO2ba3IB7TsnaU+jDXiMpjJc8O7dzd3VF3kEbFK/rplSIwK0pdwLBsABzp0oBxUPP4DkEh9IM/hQpxLIzHmiG69Z+rYbhn3XTJLksdAAdgEAcBZK6g5NjvPbHMXSAlApPU/16mlFWOePF2k=

@@ -4,6 +4,11 @@ kind: SealedSecret
 metadata:
   name: aws-region
   namespace: development
+  annotations:
+    # Ensure this app waits for the other two apps to be Healthy
+    argocd.argoproj.io/depends-on: '["cert-manager-helm", "cert-manager-local"]'
+    # optional: keep this later in the overall ordering
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   encryptedData:
     AWS_REGION: AgAvqReFRFOwI8yo3z+WNf3bzhx7XlRfQWL/aewtrhFfroaa/lWhJsHKgqCSj+/pREgHW4m5UM6b/NSj4TEvix1LdCHTPd+zqZ1e1oQbCRx0Y3gJpHjgw5Z9Fgtz2fMgRjaUCK2qFQgJ3RITg2tUopVXTaBZ2xGQiOiX7KSZAZA9IkvKW7t7kRb50loFvC0v23UPtR8JH8r/u5RJja6O/gIgHXnx0KBv2n1+o+2oS5FWithEAGV2/GPkW8oGESvDw09akWRg9hKrxGuAKJT7QuzvBFF3WXix6mk27ToCn8LKcxXUI2bl8WeAsh13vf/zW3bBVMXqPJ7F2wXhI+igklewII5CK8Ivs9BCIS2G2pfUwJiS0EDZhNWBEdDazEnuQ9G7c47kNupHV1YXBe2SwEZSR9QGifZ8v+n3Jwhm8C0LR92DGClqhdakQyi04zXNyYV4hnIuxLarkLymySQYD8tKAYLq7dFv8BsXpZr/3kPPetPdN6X95TOJf2wc6MlJIEeRPJMdRR8D7r3/MBQq62+n/AjvotZ1YWxvflzKjerVzu47y8IFREOZxYcih8zmRhWzOPMEB+lyFQufGP87nQKg0F0khFCnKIgoWhNtm0LSFTNvkMK1aoOW8iOGYC4LI8DfaO3PJQQHDNuzjykOO8YWg8tEjKiN58srFPV+d4+rIR/LbcbtHgDmgRlCnAd+g/DrkkaCkQvF8v1W
