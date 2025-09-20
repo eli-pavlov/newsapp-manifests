@@ -1,3 +1,5 @@
+fullnameOverride: newsapp-frontend-prod
+
 # values/frontend/prod.yaml (top-level keys expected by charts/frontend)
 app:
   name: frontend
