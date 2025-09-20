@@ -1,0 +1,59 @@
+# Ingress for Dev Database (dbdev.weblightenment.com)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: db-dev-ingress
+  namespace: development
+  annotations:
+    # This annotation enables TLS Passthrough
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: dbdev.weblightenment.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # Target the postgresql client service in the 'development' namespace
+                name: postgresql-dev-client
+                port:
+                  number: 5432
+  tls:
+    - hosts:
+        - dbdev.weblightenment.com
+      # Reference the secret already created by your Certificate object
+      secretName: newsapp-db-dev-tls
+---
+# Ingress for Prod Database (dbprod.weblightenment.com)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: db-prod-ingress
+  namespace: default
+  annotations:
+    # This annotation enables TLS Passthrough
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: dbprod.weblightenment.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                # Target the postgresql client service in the 'default' namespace
+                name: postgresql-prod-client
+                port:
+                  number: 5432
+  tls:
+    - hosts:
+        - dbprod.weblightenment.com
+      # Reference the secret already created by your Certificate object
+      secretName: newsapp-db-prod-tls

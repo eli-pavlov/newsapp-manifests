@@ -25,6 +25,8 @@ spec:
             nodePorts:
               http: 30080
               https: 30443
+              tcp:
+                5432: 30432 # Public port 5432 maps to NodePort 30432
             externalTrafficPolicy: Local
           nodeSelector:
             role: application
