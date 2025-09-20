@@ -6,7 +6,7 @@ metadata:
   namespace: development
   annotations:
     # Ensure this app waits for the other two apps to be Healthy
-    argocd.argoproj.io/depends-on: '["cert-manager-helm", "cert-manager-local"]'
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
     # optional: keep this later in the overall ordering
     argocd.argoproj.io/sync-wave: "1"
 spec:
