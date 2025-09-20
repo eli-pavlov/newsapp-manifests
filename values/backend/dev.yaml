@@ -55,8 +55,6 @@ env:
     - db-host
     - db-port
     - db-protocol
-    - aws-storage-type
-
 hpa:
   enabled: false
 
