@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: db-name
+  namespace: development
+spec:
+  encryptedData:
+    DB_NAME: AgAH4eQll7Yi3wmMyMCZVZJpgfwDpY+7Eckysm2WfuU4kBX1gPDR32KVBx1xZgIFYnUeguCVcyQWtQUbeZZyFMaAAZiQpgGWsviyA5wrDOLZ6XB+ikwaa2FSlK4BjpKOUryNbiPOTiUaYVvf3O+jYiASCA7IW+fTU5rn4pVBmYzVuLO4OQxD3mJkJc9+4SXID2oqCILeGN4QM+ZcS1QBToW7XJ58Qwn71CSNChpHJcfjk7uWcP2fml3pTns6LtxCL2IBvy+oKv8FloNf8NcSdE1PN4w4W1lJzzNpyKzHD+BayqZp5fDYuXDDbyjayHgtGrhoBymv8qOc6p6+xY05cK3zhUMl/KG2+hBRuifdI2sCFwtq8U7oBC4sbSqTBWN28azk0bObm6f/CAq07PnB9x0AxtdMxFdgSVWRo6QRLgv4+k0mJ5aORdnhLqPWjh4wi/5I9yIlNkX9Lznjl4rTdhiqtvfdu33kdZ48IY7Bdq8Xkr3nLIN6cZt6N9milzWLWCqWxK3i6h8v1uZTUZ+sNF0BU/OWSP/YH9OIn71Mgx9plqsiM9JpiJz78AEbhqZDb4Ecc8oaQECvuOcOKgmMHU38N5wTau3UJpM+AbFZusbAF/IG1ynRWw47w0pImCdIX5/ZC+PL3PDIdTGlap1EY64KeIxP50eXj9dmSpG3TsT2QoYe/kZlC3SnrcOFeXdX6JPWGsmoM+K7lWS7
+  template:
+    metadata:
+      name: db-name
+      namespace: development
+    type: Opaque

@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: aws-bucket
+  namespace: default
+spec:
+  encryptedData:
+    AWS_BUCKET: AgBBXFaJaEOINAYfxG/f3XM3Y3kyvML+VVOY3pYVSMYXtaDwFNdAhAva1s2K8mwgnSjF6PR2sy0uFLWDgwBXvqOcXLP3omdoWf8K+8eIWJ7wQ3UBZxLjSqdkVik+dfe0Kgv1j3s5rfrb1kH4cXvdiD22ib0d/l0Z5dtUzaOuEQq4afKUXVxn8TxftuKvQtGbAFhUuWahZEop+zWkcNgBxr7Z/1ILNXbCg0oPT59d3rnbWtj1VL3qgBGme57lK9OxOnMv9pj+bDH9jXIj4a+JWLCIu4RxKytIUu1AJt9ziEtglzm9QD5qiS8f7ntEDgcDSojEKHpk2wK/RZF0n+AHpOo0uJzvijZCO6Tvc/WIsvvZ1QQHjzT/0piVvgM2omMd3OTi7eBXSKAVkDIWrMwRXFetQ4bKNycgadllDARZ3VFEJtyPMKcaFgF9nQ65E6cc8Z+qFzykw6t0QqR6SE9l+nlMRBNH8GimY3FGINuM/0TWeIQLPlJ6+vxACvXEmKHwLR4G1+KM4sdPxpnIga/Esdo9rl59qDGtFo7c9e9dqbpmocDPY9IEPpQm2+EwfFQGz+5URaH44Xu8lfbXvKS/iPpEx/iV/bYYtFuLotApLJOK4YLEV9ll+pb5pzWe64Ydqh26c/IfPcNebxpEGBEk/ggvPzhHYdZAYjLHGb6Q7pzPlBoLgie8PLHbotELAM+HNTNg3btvi0dmFgc1
+  template:
+    metadata:
+      name: aws-bucket
+      namespace: default
+    type: Opaque

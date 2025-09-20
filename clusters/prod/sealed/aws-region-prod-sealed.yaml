@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: aws-region
+  namespace: default
+spec:
+  encryptedData:
+    AWS_REGION: AgBT1Ll5sehmACaRH3UJjoWuZK4socDFvfzlRIyaJLE2VHu2A5pa1aKLhh/SZppiEaLSDZ5phCHtB5vH2hc/hTDMRZz3TfUAP1jG//Tfi2BpofVR4zDUuAS6YGfKcZBP44pDByFvL485uun90aSsmKVE9nlILLEuC4WONOKepJFujwe9+vWVrWktwNpWgdp9rJk9qNoLtzjR5zSagehHKOflZT9S71rCVO1qkjle8JI05t8kTPpqifE6JDOVOElw7IUnl4wBgC0Grd0fU0PtDwFkQl91EdZ5jYQkNiUecMsinCNuaYF2e20KHywZbrLm0VTzQqZBqPHzrcOKBogkgf74zgmWbZ4gSd86+12C0JOS5oMAUnlela2yys5cQd82r3H0SlVakUeokOHZ+juAogOQoS5oQVCQCHBspsdnIRSpdM8h5iekwWgXCIW61QNz7ymYUAXYR5XqVNENlRhlYDRiUr7ljzCJHClOV2a/ZhzPzdk5QhKio1f/3EJ5t2B7a1J4HstJkbfsVoavT/6jV0mHNotNHMeYrI4b9TBR+BZvNyt7U3rwu5wtyq0CE2mY298xCwOuETpZxbkvd5HKAS0XKyuzL+7MM69t5GnvTwryth32JeQehrUCTNlRlBsWSa2/eg00Lw5kvSkzYi8j68m5xxrADqjif3yEU1i+VAXvCMnAVNATVYHWs9HNjh3HDt0T+ufTg8aCIX8s
+  template:
+    metadata:
+      name: aws-region
+      namespace: default
+    type: Opaque

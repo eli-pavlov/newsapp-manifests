@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: aws-access-key-id
+  namespace: development
+spec:
+  encryptedData:
+    AWS_ACCESS_KEY_ID: AgBmMJQJdDnugXdRV/doGuVn2h2/S7zEZ+49GJv6AVoGy8nzV6JxBqX2qNvMoeDp6FvHC48G4ewczNqjzdQTaM5bJLXO/QRtA6hY7+hMMB7kV68XPsbvcmKvXbjvN3LXqcJ5eBFTbDVocQz9ZLqNH9Zxr6tYEb1oNgZLNrDrBiyKHfDL3A4EtwhJjrogPv2uQTpWZbENkVLK1Rw1pFJ4X67MbbVuB5NXlCpFFK8qD1bO3Iyl/4KBUQaOXNyLEJ0js/Xu1JHRH7BfLBF3LFSyk7Z4NIs7EviWGj/8rqxbrRJihgGUnE1Xi11xvqz4qtEaEatxhRvwniOh1d+EahsQRDfgu6al3Kng48AFsExXTmIXL6TgidGKM/1WssbT0w2Gmt9NKF7cxI2aIsvATxWDhdD7fQKoJ5axcpERhRl1T/ZaNtliLsQyIRQLyCQKNMBSEAxE7EVIXNrmrAOSy/tdb9bJaf2A3SPm3EctDDo3RDD0wL96HNMVFaSMVVHXhF1SPG660SQDy8BfEuAT3JaAFOy4alFZFMLYfQRJdXI69NvqVM9Re24MQmmekrQ1XOO3sCsK2B9BTHTqD3ogIScXtRatEKki9UKmbKSd96CyeWDlTWirg3pcvfHnmUYXNfZPETApg48Sw1dwJJ1PqMcCDq31XpN0MfCz5WISjQTH0MkHGeG+gROSQ5jLbtIE/BUsZZESZC1N8BOj5sBp2QL4lNHgx9/uZA==
+  template:
+    metadata:
+      name: aws-access-key-id
+      namespace: development
+    type: Opaque

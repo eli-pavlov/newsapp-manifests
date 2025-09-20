@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: db-user
+  namespace: default
+spec:
+  encryptedData:
+    DB_USER: AgCCc4xDPwZcf70VEnVLNGLAjDdm2apoi2cShmED6CAUc3j26TPnaJoo6GIUvqWk5/R/JKsPQOdk4/xAyd8sWUDg8wN8MGmqFxDLTDhDdePKXSbjtwMll1Mad2P80KUIvb4zzsh8pMtuFZM4UNPUeAWBjrborY3mI1h3iiiFHyvfDdi5zOWgq3hwlhaSl5tASZlqXphHWxpSqIkpujC6do7ZiqQyUINMVqPackVJ4yXgn/lyeIa7///AOUuTgvEjBvORjsjDND8yAgGU7X3HI73n+6qNn65D4CHDfXL049UwDIg1t6ibDF9g87ncamG9+qbFQsPQytm/U8lVerFOUFA4m0uHO3xI2sle3qVBJgnvasjpoRn1O+3eQzkRcCrDchSZXK4D+yhpVltsFTNqQaRWXFIQWFVk3mm+/96ZHdZDZWI0zSHs6wNPKskcgnH90ftUoUb6YIUnEJGUrLG2iN9Qc1RwKxtr7KmAtE2toZQXcPMRi1yGx+tM3PsJna+TUx26u295vzg1k1vq2QFKIqQX57CKpjhl7qppHBNqk8jFxLBDWYix85wWHFzZhMojx2Vyr+Lc9s0vtAtqPfd/QBa6fgv75G5FB0uL1IgXW9Txe7eb/PP/QLDRJD222OUlewFxT3HSJvVl0J2A3P3l3p4FY7/uEncYH8z4KJR/a3gSoMkVVQagWAOOVEgFg9YhFYoGpMItnuKta5Q=
+  template:
+    metadata:
+      name: db-user
+      namespace: default
+    type: Opaque

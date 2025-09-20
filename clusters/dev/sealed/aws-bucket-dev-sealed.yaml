@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: aws-bucket
+  namespace: development
+spec:
+  encryptedData:
+    AWS_BUCKET: AgCaq61HVBZqesm7Emdlg49hdrO1W3gCNbFsJf66DpDpEGdmqgRmTfP2+K1jP71QjtvtQTqIFm7dUgGM6Xb89tIYOHqPWPFMfyTK6TywhKtmOXSEcDchS1fAG7BHWpJSdbwoeydepf7ICSp01fSpX4slotcE3MtnJz9TbgSSiJFYLi2vPSRU5IWwRSQq8Ucw9cXSUaPn1COa0i5gC3qZfFun8LLfDrgB3q/4paRV1s90sRjC/U2LE9JxGyKbt/i1trU1Efa1Cpo2PB1Bz88p8wz0JcTax+J7iUIK49gHGhubSdMUpjTX+idzRhmJMo7Ib3z1CFMldr1FklKQBGQfzkI+f40vWDG8lXIvGcnlSyFC3YTIfg0oNsntiSqW1h/umjIbI3Z1S3mj0mU9Q5OX17mhXsLOdzgFbrvzgBFahNO8V+dts+cZcwLE8JyY7q7mAoExxznLkxBE5IFnsoUX3U9gpBTceq8m59Y7daLkz+/AHCmxP5qOcZim/WazrY3/NWiA+ii3X6PkTOf1bDsO9p0DNtxVDwrDNAZZAZZCfAYR7OlpiwmryamGSU67Lq1rNnh3/5+YNoanwkxu3U7g6JvPmCrpFaPPQEN9+jeZFXKyhmSD4Y58+6fmwz7MB+ktIb9qlNGlS0+jAMnCogF7KfJdxtYv6PULiF7l2+kJqYlfIDjs060tkoEUGyBAf0RvSwg4UBG0Z/TLSQqD
+  template:
+    metadata:
+      name: aws-bucket
+      namespace: development
+    type: Opaque

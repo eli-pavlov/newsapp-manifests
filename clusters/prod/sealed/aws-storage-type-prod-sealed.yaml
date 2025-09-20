@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: aws-storage-type
+  namespace: default
+spec:
+  encryptedData:
+    STORAGE_TYPE: AgBeV1bTRZYa0deFet7NI52lrtw5iVZFN86DNlmYAoVpCb3Eh2I07Khg1UeSvwMwwchrC58fmcGX5LgzdhuMOzrizRsu0TzCUpBZopdYg79K10oGM4CEvARCJ2hNOrMkOn8/Th1/eR7St55hE+2GSnPYBLOOSDemv4XR63Fh0tO4W9+SDwCgJj3D/Mg9EjLSnDqNy1iEoYlHHwhG/z71VGGSkuwfjSfjjWx2fxdX4wMSDinlzJcexkjqu3bYZD1xqPvS7vbDdHuwaUyS4FXYp5Rfpra5VTFAEOPQ/bcnJ79stPKV+h9CEC6XTlvcQjKxafe5yoKDr/DofWwMIrVfTDwfGKLJDL2YvtB6NAcfx3TqlvvHGpXx84ZuQHlU1tP+AsHM+Du4csTVPD27SsHnNHTMtbkRbJ6Ry//jTrJRW7KYtXzwcVAM1t5271s7b7KHtuCTof4ge0uhDmbgSd4lo1vPVxF8BU0jjtuoJzjN7SdcTh6REGB2Sf0JjmLgV5l+DcUHhLJ0qd5rlrG8jP5Wm4FSDex2RPfsL35o8Yg2uhkWyGO+Qo+y53qB0U6OcCq0L2LpKUkW4GYbYN32MfFfZOjD4gb452I5k6SQifA9iya11buGs1rPOzfZg3Dq5dz+no27ZYerH513gxVP/B0GrItXnSndCped3iBcUovB3mE9ecqWUH9+rsnkKZ7xhdUEiNjF2LlS5FM=
+  template:
+    metadata:
+      name: aws-storage-type
+      namespace: default
+    type: Opaque

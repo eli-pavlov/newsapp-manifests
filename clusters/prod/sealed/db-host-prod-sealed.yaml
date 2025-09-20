@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: db-host
+  namespace: default
+spec:
+  encryptedData:
+    DB_HOST: AgBb+o8EFpsDiyN2eFTbie2woFYMHZf0MOEOH1eYfsQy2EfEid8xsDcASv3TO8MmNwZ0DWnLmzoetpJDnNtGzX4OEgslLezxWmNyPyLoiZx2pV9SyvlaQh3vOnF0uLwZoDwbeaevMOMQ3B1P9Ss8qIFmhwh+Zqt8YfA+uS6W4i9mHkXnlT9fJHGOYI+i5yknnZCDT0mH0SASOE4zZIIQ3Ze20ej6HhHim7/XHAuDWhpvpVChLq0J/5pNe2wL6wDuGEEpdwo3MHe48LFiDlrtYggf0kt3Tz56TTbd/l6upvRNQ/ABSuhKgjyE4mkNPQ3lyOy+K3Zu5AKsGoGHRcqrEHORPVf4K0XWAo1jMsfLLy2AVpQW71hd8GxkI8WCCo4wfbO7RU8uI7DMffBJVdsIrBtq81A7Esv7R9tAXBIKlEEndLw4zRFyUDDCXmgl6dnL3bbh92ZEWSofNJ+SP6Jx9Mw2cz35LwwL/X7iRB1kjzNd8rMGXVAUkPp9JIAQI8pjv+Uqz6ql+5xqNug0GysQhBYsU17RBm2dgeWJoAng8/GDGhWzmvtoDZKKVwxpJA5SB13sljjL4yibd3an4wXeBNyGBFJvVrk4736aH+S4CJKOKfkdoslxWaVWSB2Hmyp8pTlsUcrlckU16Z7G88gtWdnlcA9egGOFCwm2xghJB+z/Vf7602tSOnoHzfCAlj5uc0wqMKl+1EVxrKMXih6XoJmUYZdCDZ+QBN3xjHak2xn7ItJaKAGfA6zrAmDdkFSScT8=
+  template:
+    metadata:
+      name: db-host
+      namespace: default
+    type: Opaque

@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: db-port
+  namespace: development
+spec:
+  encryptedData:
+    DB_PORT: AgBh4+a8rXIThOg/JGn5H7lOSqSotqhsDUUYLlgOSwMwAe3bd2KNvbDCc1SLU+iWfuJv/wtJIGz47HSujmMmU0yoy/eRADoDyiSWHOa2fs6VsqJe196HarefvXyxjXVRdPuczelQhvQD/tgGDVN2eSVwtySMGmoJsosjyLUpU4Ceydjn/RADnORghJzKfLpbxZYmzU2l6wyc8GDWrFohlewA6PFgLt271nlu2OS80egT5jwdd84K3DAxUC6gQtklZqkJZRX/KxeZ0ZYPATHHyBFOo9uipGD/gXHMXBz5bo0x96eYH1XybkESM04fEvSTEt093MEa2b1PBN8kVrSm6Oxq5BEmfXprdydP3Hbb8ax9NAvq6ESYo3d49kW5yNIh1Pj//N09UulzUNbhRIHhd9gZ51XoqEg+ntzxSeXNUwVUn+IRifKtpzk750Uqmm/sLSRvyWb0Yd75OlGoV9OzlaSjko68XHbBPvV0kUtmD80J1HlwTbmmakn5g/FSvJ1AIp7Mbl8keOQFH9C/YMVPRF0+MpN4rj9szglrJIVewz7hIIignbseFdJ22yUHQxeYv8jljXzh8ze9KS9FondFjgaeirtu5+nF8gwex8ujXjJRffQ7vUm7EJkNtLBdgrwdgy332soi/yDDF2kcBsCkVPEXtePDTwnFIFKz1V7uJHEEbfpeZlnBSUUKhlnwcMBkuPiho4VG
+  template:
+    metadata:
+      name: db-port
+      namespace: development
+    type: Opaque
