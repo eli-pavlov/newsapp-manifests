@@ -4,6 +4,7 @@ metadata:
   name: newsapp-backend-dev
   namespace: argocd
   annotations:
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller","cert-manager-helm"]'
     argocd.argoproj.io/sync-wave: "1"
 spec:
   project: newsapp-dev
