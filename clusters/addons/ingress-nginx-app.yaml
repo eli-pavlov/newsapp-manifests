@@ -35,7 +35,8 @@ spec:
             patch:
               enabled: false
           extraArgs:
-            - --enable-ssl-passthrough
+            enable-ssl-passthrough: ""
+            update-status: "false"
   destination:
     server: https://kubernetes.default.svc
     namespace: ingress-nginx
