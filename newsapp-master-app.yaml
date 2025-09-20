@@ -22,3 +22,40 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+  # This tells the master app to ignore changes made to the repo-server,
+  # preventing it from reverting our patch.
+  - group: apps
+    kind: Deployment
+    name: argocd-repo-server
+    namespace: argocd
+    jsonPointers:
+      - /spec/template/spec/containers/0/resources
+      - /spec/template/spec/volumes
+      - /spec/template/spec/containers/0/volumeMounts
+      
+---
+# This patch adds resources and caching to the repo-server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+  namespace: argocd
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-repo-server
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /tmp
+              name: helm-cache
+      volumes:
+        - name: helm-cache
+          emptyDir: {}

@@ -42,7 +42,6 @@ env:
     DB_ENGINE_TYPE: "POSTGRES"
   # list every SealedSecret name (these are created in the default namespace under clusters/prod/sealed)
   secretRefs:
-    - backend-db-connection
     - storage-type
     - aws-secret-access-key
     - aws-access-key-id

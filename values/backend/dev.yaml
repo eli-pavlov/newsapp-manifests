@@ -43,7 +43,6 @@ env:
   # list every SealedSecret name (these are created in the development namespace under clusters/dev/sealed)
   # The backend chart will add envFrom: secretRef for each name below; each key from the referenced secret will become an env var.
   secretRefs:
-    - backend-db-connection
     - storage-type
     - aws-secret-access-key
     - aws-access-key-id
