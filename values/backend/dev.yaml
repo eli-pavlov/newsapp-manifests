@@ -1,17 +1,22 @@
+# backend/dev values - includes all sealed secrets from clusters/dev/sealed as envFrom secretRefs
 app:
   name: backend
   syncWave: "1"
 fullnameOverride: backend
 replicaCount: 2
+
 image:
   repository: elipavlov/newsapp-backend
   tag: dev-3eb972c
   pullPolicy: IfNotPresent
+
 service:
   type: ClusterIP
   port: 3000
+
 nodeSelector:
   role: application
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -23,6 +28,7 @@ affinity:
                 operator: In
                 values: ["backend"]
           topologyKey: kubernetes.io/hostname
+
 resources:
   requests:
     cpu: 100m
@@ -30,9 +36,12 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
+  # list every SealedSecret name (these are created in the development namespace under clusters/dev/sealed)
+  # The backend chart will add envFrom: secretRef for each name below; each key from the referenced secret will become an env var.
   secretRefs:
     - backend-db-connection
     - storage-type
@@ -46,8 +55,11 @@ env:
     - db-host
     - db-port
     - db-protocol
+    - aws-storage-type
+
 hpa:
   enabled: false
+
 networkPolicy:
   backendEgressWeb:
     enabled: true
