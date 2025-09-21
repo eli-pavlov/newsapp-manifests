@@ -6,9 +6,9 @@ metadata:
   namespace: development
   annotations:
   # Ensure this app waits for the other two apps to be Healthy
-  argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
-  # optional: keep this later in the overall ordering
-  argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
+    # optional: keep this later in the overall ordering
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   encryptedData:
     STORAGE_TYPE: AgCHGmsBH7JHRSGEwp0aDx8Esvbjb27w28m8fV/8unyV/mTM4VBfT0ydw/uieDFbs3syvTnsrjIFsGo97iNARn+8zFU34Cw75knOQRSXkf0K2pi83m2x0EnY2axvTDp2yXWf3ub8AGP19djiF/L0fAkNfXqGoE5qlCdhmT6bOKEUJGPDe0vRfNMbE630leTl3V5zyOQlwBvUIJk5d3qdGVCDTEXj8C6dKnYJvfCxvPOI9VX989hsSx/6u87/HuVcmjolhVygHWoKNGYUsO16pzAaaQzcUEo+SsVFB12HGDrNmkI8ttk7gayFXSHMq2fldO/OiKjtgyMTna8dgfu4893bKSAwk+5O1U/OgvWq6YANiz/caZ+JRH4CoWUmazhtZZQFbowPwOhbOEbuC7WtVhipFP4FNrMiwhLrFXh1jkjZpjLp+eeLm0PagLXIoUm+Cb4qhKUkRopK+yk+FDGUdcitOCwW2tZhQ/FpPoUwIqRVPaXi7geCkG7P3eXdp4bzXedHH2kvUl8w2+4rUGhonpvy75NXSAdpAWnnPEr/xEmjGkRteoKmjCSUKs1vXtysY6yhofUaUkUdYXQVk4QOKYfb3BBCl9F5gFd5UvAhHQCjw1q/uCUFz5voF989AZCvsJtfRLXx/fP2Hl8fxciQMuhMLL42y2Gi/yPkfsXeZtDdpr4qkZBqTN65jskNJkdNykFpMyRJaOw=
