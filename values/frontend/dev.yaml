@@ -39,10 +39,18 @@ ingress:
   enabled: true
   className: nginx
   hosts:
-    - host: newsapp-dev.weblightenment.com
+    - host: newsapp.weblightenment.com
       paths:
         - path: /
           pathType: Prefix
+          service:
+            name: frontend # Custom value
+            port: 8080    # Custom value
+        - path: /api
+          pathType: Prefix
+          service:
+            name: backend # Custom value
+            port: 3000   # Custom value
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
       secretName: newsapp-dev-tls
