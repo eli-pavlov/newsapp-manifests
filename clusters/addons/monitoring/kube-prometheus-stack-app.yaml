@@ -1,0 +1,100 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    # choose ordering relative to other apps; tune as you like
+    argocd.argoproj.io/sync-wave: "-50"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 47.0.0      # optional: pick a version you trust; update as desired
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        ## Put minimal values here — adjust to taste
+        global:
+          # set common nodeSelector if supported; otherwise per-component below
+          # nodeSelector:
+          #   role: control-plane
+
+        ## Ensure pods schedule to control-plane nodes:
+        prometheus:
+          prometheusSpec:
+            nodeSelector:
+              role: control-plane
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Exists"
+                effect: "NoSchedule"
+            # reduce resource usage to be conservative on control-plane
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 300m
+                memory: 512Mi
+
+        alertmanager:
+          nodeSelector:
+            role: control-plane
+          tolerations:
+            - key: "node-role.kubernetes.io/control-plane"
+              operator: "Exists"
+              effect: "NoSchedule"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+        grafana:
+          enabled: true
+          nodeSelector:
+            role: control-plane
+          tolerations:
+            - key: "node-role.kubernetes.io/control-plane"
+              operator: "Exists"
+              effect: "NoSchedule"
+          persistence:
+            enabled: false   # change to true and configure PVC if you want persistent dashboards
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+        kubeStateMetrics:
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+        nodeExporter:
+          enabled: false  # node exporter on control-plane can be enabled, but may duplicate cluster metrics
+
+        # optionally disable ServiceMonitors you don't need to reduce resource usage
+        prometheusOperator:
+          enabled: true
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
