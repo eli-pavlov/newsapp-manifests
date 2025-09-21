@@ -42,11 +42,31 @@ spec:
                 - pgadmin-dev.weblightenment.com
         resources:
           requests:
-            cpu: 50m
-            memory: 128Mi
+            cpu: 100m
+            memory: 512Mi
           limits:
             cpu: 200m
-            memory: 256Mi
+            memory: 512Mi
+        startupProbe:
+          enabled: true
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 20
+          path: /misc/ping
+          port: http
+          scheme: HTTP
+        readinessProbe:
+          enabled: true
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+          path: /misc/ping
+          port: http
+          scheme: HTTP
         # tell chart to load UI admin creds from an existing secret (see notes)
         existingSecret: pgadmin-auth
   destination:
