@@ -17,6 +17,8 @@ spec:
       values: |
         ## Put minimal values here — adjust to taste
         global:
+          rbac:
+            create: true
           # set common nodeSelector if supported; otherwise per-component below
           # nodeSelector:
           #   role: control-plane
