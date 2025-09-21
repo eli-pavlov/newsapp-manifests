@@ -34,7 +34,6 @@ env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
   secretRefs:
-    - backend-db-connection
     - storage-type
     - aws-secret-access-key
     - aws-access-key-id
