@@ -8,7 +8,7 @@ spec:
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git
     - https://charts.jetstack.io 
-    - https://charts.bitnami.com/bitnami
+    - https://helm.runix.net 
   destinations:
     - namespace: development
       server: https://kubernetes.default.svc
