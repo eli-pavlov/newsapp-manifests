@@ -1,0 +1,56 @@
+# clusters/dev/apps/pgadmin-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: newsapp-pgadmin-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: newsapp-dev
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: pgadmin
+    targetRevision: 13.2.0   # update to a version you trust
+    helm:
+      releaseName: pgadmin
+      values: |
+        replicaCount: 1
+        image:
+          repository: bitnami/pgadmin
+          tag: latest
+        service:
+          type: ClusterIP
+          port: 80
+        ingress:
+          enabled: true
+          className: nginx
+          hostname: pgadmin-dev.weblightenment.com
+          tls: true
+          tlsSecret: pgadmin-dev-tls
+          annotations:
+            kubernetes.io/ingress.class: "nginx"
+            # optional: limit access by IP range (add your IPs)
+            # nginx.ingress.kubernetes.io/whitelist-source-range: "x.x.x.x/32,y.y.y.y/32"
+        metrics:
+          enabled: false
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        # tell chart to load UI admin creds from an existing secret
+        existingSecret: pgadmin-auth
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: development
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
