@@ -27,9 +27,9 @@ spec:
             pathType: {{ $p.pathType | default "Prefix" | quote }}
             backend:
               service:
-                name: {{ include "frontend.fullname" $root }}
+                name: {{ if $p.service }}{{ $p.service.name | quote }}{{ else }}{{ include "frontend.fullname" $root | quote }}{{ end }}
                 port:
-                  number: {{ $root.Values.service.port }}
+                  number: {{ if $p.service }}{{ $p.service.port }}{{ else }}{{ $root.Values.service.port }}{{ end }}
           {{- end }}
     {{- end }}
   {{- with $root.Values.ingress.tls }}

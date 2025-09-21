@@ -1,3 +1,5 @@
+fullnameOverride: frontend
+# values/frontend/dev.yaml (top-level keys expected by charts/frontend)
 app:
   name: frontend
   syncWave: "2"
@@ -39,18 +41,18 @@ ingress:
   enabled: true
   className: nginx
   hosts:
-    - host: newsapp.weblightenment.com
+    - host: newsapp-dev.weblightenment.com
       paths:
-        - path: /
-          pathType: Prefix
-          service:
-            name: frontend # Custom value
-            port: 8080    # Custom value
         - path: /api
           pathType: Prefix
           service:
-            name: backend # Custom value
-            port: 3000   # Custom value
+            name: backend
+            port: 3000
+        - path: /
+          pathType: Prefix
+          service:
+            name: frontend
+            port: 8080
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
       secretName: newsapp-dev-tls
