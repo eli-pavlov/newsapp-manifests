@@ -83,29 +83,3 @@ spec:
         - protocol: TCP
           port: {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
 {{- end }}
-{{- /* Allow ingress controller to talk to backend (opt-in) */ -}}
-{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.allowIngressController }}
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: be-allow-from-ingress
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: backend
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        # restrict to pods in the ingress-nginx namespace *and* matching ingress pod label
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: {{ .Values.service.port }}
-{{- end }}

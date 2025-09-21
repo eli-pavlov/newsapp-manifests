@@ -1,12 +1,10 @@
-fullnameOverride: frontend
-# values/frontend/dev.yaml (top-level keys expected by charts/frontend)
 app:
   name: frontend
   syncWave: "2"
 replicaCount: 2
 image:
   repository: elipavlov/newsapp-frontend
-  tag: dev-7b930b9
+  tag: dev-29c4b69
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -43,16 +41,8 @@ ingress:
   hosts:
     - host: newsapp-dev.weblightenment.com
       paths:
-        - path: /api
-          pathType: Prefix
-          service:
-            name: backend
-            port: 3000
         - path: /
           pathType: Prefix
-          service:
-            name: frontend
-            port: 8080
   tls:
     - hosts: ["newsapp-dev.weblightenment.com"]
       secretName: newsapp-dev-tls
