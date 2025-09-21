@@ -7,8 +7,8 @@ spec:
   description: "Development project for newsapp"
   sourceRepos:
     - https://github.com/eli-pavlov/newsapp-manifests.git
-    - https://charts.jetstack.io   # optional, remove if you don't want cert-manager fetched by ArgoCD
-  destinations:
+    - https://charts.jetstack.io 
+    - https://charts.bitnami.com/bitnami  
     - namespace: development
       server: https://kubernetes.default.svc
     - namespace: cert-manager
