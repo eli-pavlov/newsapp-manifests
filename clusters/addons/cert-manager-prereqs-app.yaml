@@ -1,0 +1,23 @@
+# clusters/addons/cert-manager-prereqs-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-prereqs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-95"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
+    targetRevision: main
+    path: addons/cert-manager-prereqs
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
