@@ -4,19 +4,15 @@ app:
   syncWave: "1"
 fullnameOverride: backend
 replicaCount: 2
-
 image:
   repository: elipavlov/newsapp-backend
-  tag: dev-3eb972c
+  tag: dev-c5596cf
   pullPolicy: IfNotPresent
-
 service:
   type: ClusterIP
   port: 3000
-
 nodeSelector:
   role: application
-
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -28,7 +24,6 @@ affinity:
                 operator: In
                 values: ["backend"]
           topologyKey: kubernetes.io/hostname
-
 resources:
   requests:
     cpu: 100m
@@ -36,7 +31,6 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
@@ -56,7 +50,6 @@ env:
     - db-protocol
 hpa:
   enabled: false
-
 networkPolicy:
   backendEgressWeb:
     enabled: true
