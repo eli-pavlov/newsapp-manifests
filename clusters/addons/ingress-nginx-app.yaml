@@ -4,7 +4,6 @@ metadata:
   name: ingress-nginx
   namespace: argocd
   annotations:
-    argocd.argoproj.io/depends-on: '["sealed-secrets-controller"]'
     argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default

@@ -1,4 +1,3 @@
-# values/frontend/dev.yaml (top-level keys expected by charts/frontend)
 app:
   name: frontend
   syncWave: "2"
