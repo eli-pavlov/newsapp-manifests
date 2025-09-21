@@ -51,6 +51,7 @@ env:
 hpa:
   enabled: false
 networkPolicy:
+  allowIngressController: true
   backendEgressWeb:
     enabled: true
   backendEgressDb:
