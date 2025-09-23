@@ -27,7 +27,7 @@ spec:
         prometheus:
           prometheusSpec:
             nodeSelector:
-              role: control-plane
+              "node-role.kubernetes.io/control-plane": "true"
             tolerations:
               - key: "node-role.kubernetes.io/control-plane"
                 operator: "Exists"
@@ -43,7 +43,7 @@ spec:
 
         alertmanager:
           nodeSelector:
-            role: control-plane
+            "node-role.kubernetes.io/control-plane": "true"
           tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Exists"
@@ -59,7 +59,7 @@ spec:
         grafana:
           enabled: true
           nodeSelector:
-            role: control-plane
+            "node-role.kubernetes.io/control-plane": "true"
           tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Exists"
