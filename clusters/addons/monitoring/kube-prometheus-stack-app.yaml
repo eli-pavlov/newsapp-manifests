@@ -85,10 +85,10 @@ spec:
               # For production:
               cert-manager.io/cluster-issuer: "letsencrypt-staging"
             hosts:
-              - host: grafana.weblightenment.com
-                paths:
-                  - path: /
-                    pathType: Prefix
+              - grafana.weblightenment.com
+            # optional single-path config (chart may use this instead of nested host maps)
+            path: /
+            pathType: Prefix
             tls:
               - hosts:
                   - grafana.weblightenment.com
