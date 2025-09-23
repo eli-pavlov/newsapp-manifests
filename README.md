@@ -76,9 +76,9 @@ newsapp-manifests/
 │   └── postgres/           # Helm chart for the PostgreSQL database.
 └── values/
 ├── ├─backend/
-│     ├── dev.yaml        # Helm values for the backend in dev.
-│     └── prod.yaml       # Helm values for the backend in prod.
-├── ├─frontend/
+│   │ ├── dev.yaml        # Helm values for the backend in dev.
+│   │ └── prod.yaml       # Helm values for the backend in prod.
+├── └─frontend/
 │     ├── dev.yaml
 │     └── prod.yaml
 └── postgres/
