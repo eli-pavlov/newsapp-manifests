@@ -57,3 +57,12 @@ networkPolicy:
       matchLabels:
         app.kubernetes.io/name: postgresql-dev
     dbPort: 5432
+  backendEgressMemcache:
+    enabled: true
+    memcacheSelector:
+      matchLabels:
+        app.kubernetes.io/name: memcached
+        app.kubernetes.io/instance: memcache-dev
+memcache:
+  enabled: false
+  host: "memcache-dev.development.svc.cluster.local"

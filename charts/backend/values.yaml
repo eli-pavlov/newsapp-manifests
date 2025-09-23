@@ -76,6 +76,10 @@ networkPolicy:
     enabled: true
     exceptCidrs: []
     ports: [80, 443]
+  backendEgressMemcache:
+    enabled: true
+    memcacheSelector: {} # To be defined by environment values
+    memcachePort: 11211
 
   backendEgressDb:
       enabled: true
@@ -83,3 +87,7 @@ networkPolicy:
         matchLabels:
           app.kubernetes.io/name: postgresql
       dbPort: 5432
+memcache:
+  enabled: false
+  host: ""
+  port: 11211

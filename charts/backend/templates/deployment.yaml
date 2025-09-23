@@ -89,6 +89,13 @@ spec:
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
+            {{- /* Add this block for Memcache env vars */}}
+            {{- if .Values.memcache.enabled }}
+            - name: MEMCACHE_HOST
+              value: {{ .Values.memcache.host | quote }}
+            - name: MEMCACHE_PORT
+              value: {{ .Values.memcache.port | quote }}
+            {{- end }}
           {{- /* envFrom: support singular secretRef (back compat) and a list secretRefs (preferred) */ -}}
           {{- $cfgRef := .Values.env.configRef -}}
           {{- $secretRef := .Values.env.secretRef -}}
