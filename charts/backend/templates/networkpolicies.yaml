@@ -83,25 +83,3 @@ spec:
         - protocol: TCP
           port: {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
 {{- end }}
-
-{{- /* Add this new NetworkPolicy resource for Memcache */}}
-{{- if and .Values.networkPolicy.enabled .Values.memcache.enabled .Values.networkPolicy.backendEgressMemcache.enabled }}
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: be-egress-to-memcache
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/component: backend
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - podSelector:
-            {{- toYaml .Values.networkPolicy.backendEgressMemcache.memcacheSelector | nindent 12 }}
-      ports:
-        - protocol: TCP
-          port: {{ .Values.networkPolicy.backendEgressMemcache.memcachePort }}
-{{- end }}
