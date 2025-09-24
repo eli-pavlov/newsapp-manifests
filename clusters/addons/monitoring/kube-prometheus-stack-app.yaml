@@ -34,7 +34,8 @@ spec:
             storageSpec:
               volumeClaimTemplate:
                 spec:
-                  storageClassName: local-db-prod   # <-- change as appropriate
+                  storageClassName: local-db-prod
+                  accessModes: ["ReadWriteOnce"]
                   resources:
                     requests:
                       storage: 8Gi          
