@@ -55,5 +55,6 @@ networkPolicy:
     dbNamespace: development
     dbSelector:
       matchLabels:
-        app.kubernetes.io/name: postgresql-dev
+        app.kubernetes.io/name: pgpool
+        app.kubernetes.io/instance: pgpool-dev
     dbPort: 5432

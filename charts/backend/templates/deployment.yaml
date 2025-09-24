@@ -55,7 +55,7 @@ spec:
               i=0
               while [ $i -lt 60 ]; do
                 i=$((i + 1))
-                if pg_isready -h {{ printf "%s-client.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }} >/dev/null 2>&1; then
+                if pg_isready -h {{ printf "%s-internal.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }} >/dev/null 2>&1; then
                   echo "DB is ready!"
                   exit 0
                 fi
