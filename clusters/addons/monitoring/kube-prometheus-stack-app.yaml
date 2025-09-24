@@ -15,6 +15,7 @@ spec:
     helm:
       releaseName: kube-prometheus-stack
       values: |
+        installCRDs: true
         ## Put minimal values here — adjust to taste
         global:
           rbac:
@@ -26,6 +27,14 @@ spec:
         ## Ensure pods schedule to control-plane nodes:
         prometheus:
           prometheusSpec:
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: local-db-prod   # <-- change as appropriate
+                  resources:
+                    requests:
+                      storage: 8Gi          
+
             nodeSelector:
               "node-role.kubernetes.io/control-plane": "true"
             tolerations:
