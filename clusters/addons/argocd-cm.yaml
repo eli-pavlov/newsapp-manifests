@@ -1,0 +1,11 @@
+# clusters/addons/argocd/argocd-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  # Switch ArgoCD to use an alternate instance label key.
+  # This prevents ArgoCD from overwriting app.kubernetes.io/instance
+  # (so Helm charts that rely on that label keep working).
+  application.instanceLabelKey: "argocd.argoproj.io/instance"

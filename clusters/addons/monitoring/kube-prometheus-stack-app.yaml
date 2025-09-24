@@ -2,7 +2,10 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: kube-prometheus-stack
-  namespace: argocd
+  namespace: monitoring
+  labels:
+    # make sure PrometheusOperator treats this as managed (optional)
+    app.kubernetes.io/managed-by: Helm
   annotations:
     # choose ordering relative to other apps; tune as you like
     argocd.argoproj.io/sync-wave: "-50"
