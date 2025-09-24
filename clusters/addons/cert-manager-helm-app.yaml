@@ -17,7 +17,7 @@ spec:
     helm:
       releaseName: cert-manager
       values: |
-        installCRDs: true
+        installCRDs: false
         tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Equal"
