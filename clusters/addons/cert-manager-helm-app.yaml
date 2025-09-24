@@ -30,6 +30,8 @@ spec:
               operator: "Equal"
               value: "true"
               effect: "NoSchedule"
+          extraArgs:
+            - --leader-election-lease-duration=30s
         webhook:
           extraArgs:
             - --enable-certificate-owner-ref=true
