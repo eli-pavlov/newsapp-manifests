@@ -18,8 +18,6 @@ spec:
       releaseName: cert-manager
       values: |
         installCRDs: true
-        extraArgs:
-          - --enable-certificate-owner-ref=true
         tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Equal"
