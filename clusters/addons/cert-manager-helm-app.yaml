@@ -18,6 +18,23 @@ spec:
       releaseName: cert-manager
       values: |
         installCRDs: true
+        tolerations:
+            - key: "node-role.kubernetes.io/control-plane"
+              operator: "Equal"
+              value: "true"
+              effect: "NoSchedule"
+          cainjector:
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Equal"
+                value: "true"
+                effect: "NoSchedule"
+          webhook:
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Equal"
+                value: "true"
+                effect: "NoSchedule"
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
