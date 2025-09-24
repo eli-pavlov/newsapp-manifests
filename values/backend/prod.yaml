@@ -57,6 +57,5 @@ networkPolicy:
     dbNamespace: default
     dbSelector:
       matchLabels:
-        app.kubernetes.io/name: pgpool
-        app.kubernetes.io/instance: pgpool-prod
+        app.kubernetes.io/name: postgresql-prod
     dbPort: 5432
