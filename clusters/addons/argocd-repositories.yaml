@@ -1,4 +1,4 @@
-# This secret registers your main Git repository with Argo CD
+# This secret registers main Git repository with Argo CD
 apiVersion: v1
 kind: Secret
 metadata:
@@ -26,7 +26,6 @@ stringData:
   type: helm
   name: jetstack
   url: https://charts.jetstack.io
-
 ---
 apiVersion: v1
 kind: Secret
@@ -41,3 +40,33 @@ stringData:
   type: helm
   name: sealed-secrets
   url: https://bitnami-labs.github.io/sealed-secrets
+---
+# This secret registers the Bitnami Helm repo for the pgpool chart
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bitnami-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-100"
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: bitnami
+  url: https://charts.bitnami.com/bitnami
+---
+# This secret registers the Prometheus Community Helm repo for monitoring
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-community-helm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-100"
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: prometheus-community
+  url: https://prometheus-community.github.io/helm-charts
