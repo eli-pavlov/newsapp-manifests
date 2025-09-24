@@ -27,6 +27,10 @@ spec:
         ## Ensure pods schedule to control-plane nodes:
         prometheus:
           prometheusSpec:
+            serviceMonitorSelector: {}            # accept ServiceMonitors regardless of labels
+            serviceMonitorNamespaceSelector: {}   # empty object => select ALL namespaces
+            podMonitorSelector: {}
+            podMonitorNamespaceSelector: {}
             storageSpec:
               volumeClaimTemplate:
                 spec:
@@ -41,6 +45,7 @@ spec:
               - key: "node-role.kubernetes.io/control-plane"
                 operator: "Exists"
                 effect: "NoSchedule"
+            
             # reduce resource usage to be conservative on control-plane
             resources:
               requests:
