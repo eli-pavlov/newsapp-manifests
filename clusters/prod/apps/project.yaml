@@ -7,7 +7,8 @@ spec:
   description: "Environment project for newsapp"
   sourceRepos:
     - 'https://github.com/eli-pavlov/newsapp-manifests.git'
-    - 'https://charts.jetstack.io'   #letting ArgoCD fetch cert-manager from helm
+    - 'https://charts.jetstack.io'
+    - https://prometheus-community.github.io/helm-charts
   destinations:
     - namespace: default
       server: https://kubernetes.default.svc
