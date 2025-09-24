@@ -7,7 +7,7 @@ metadata:
     # make sure PrometheusOperator treats this as managed (optional)
     app.kubernetes.io/managed-by: Helm
   annotations:
-    # choose ordering relative to other apps; tune as you like
+    # choose ordering relative to other apps
     argocd.argoproj.io/sync-wave: "-50"
 spec:
   project: default
