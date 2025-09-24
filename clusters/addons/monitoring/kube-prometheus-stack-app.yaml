@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
-    targetRevision: 47.0.0      # optional: pick a version you trust; update as desired
+    targetRevision: 75.0.0
     helm:
       releaseName: kube-prometheus-stack
       values: |
@@ -37,8 +37,7 @@ spec:
             storageSpec:
               volumeClaimTemplate:
                 spec:
-                  storageClassName: local-db-prod
-                  accessModes: ["ReadWriteOnce"]
+                  storageClassName: ""
                   resources:
                     requests:
                       storage: 8Gi          

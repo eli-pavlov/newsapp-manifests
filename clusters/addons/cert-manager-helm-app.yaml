@@ -24,12 +24,15 @@ spec:
               value: "true"
               effect: "NoSchedule"
         cainjector:
+          replicaCount: 2
           tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Equal"
               value: "true"
               effect: "NoSchedule"
         webhook:
+          extraArgs:
+            - --enable-certificate-owner-ref=true
           tolerations:
             - key: "node-role.kubernetes.io/control-plane"
               operator: "Equal"
