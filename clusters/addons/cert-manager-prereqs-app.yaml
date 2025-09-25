@@ -5,7 +5,7 @@ metadata:
   name: cert-manager-prereqs
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-95"
+    argocd.argoproj.io/sync-wave: "-89"
     argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   project: default
