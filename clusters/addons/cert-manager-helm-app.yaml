@@ -19,7 +19,8 @@ spec:
       values: |
         installCRDs: true
         replicaCount: 2
-          podDisruptionBudget.enabled: true
+        podDisruptionBudget:
+          enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
