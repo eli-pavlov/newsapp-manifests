@@ -6,6 +6,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   secretName: argocd-tls
   dnsNames:
@@ -39,6 +40,7 @@ metadata:
   namespace: development
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   secretName: newsapp-dev-tls
   dnsNames:
@@ -71,6 +73,7 @@ metadata:
   namespace: default
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   secretName: newsapp-db-prod-tls
   dnsNames:
@@ -87,6 +90,7 @@ metadata:
   namespace: development
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   secretName: pgadmin-dev-tls
   dnsNames:
@@ -103,6 +107,7 @@ metadata:
   namespace: monitoring
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   secretName: grafana-tls
   dnsNames:
