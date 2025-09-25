@@ -15,7 +15,7 @@ spec:
     helm:
       releaseName: pgadmin-dev
       values: |
-        replicaCount: 1
+        replicaCount: 2
         image:
           repository: dpage/pgadmin4
           tag: "9.8"
@@ -79,13 +79,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
-
-  ignoreDifferences:
-    - group: ""
-      kind: Secret
-      jsonPointers:
-        - /data
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /status

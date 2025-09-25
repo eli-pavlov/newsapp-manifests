@@ -17,27 +17,7 @@ spec:
     helm:
       releaseName: cert-manager
       values: |
-        installCRDs: false
-        tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Equal"
-              value: "true"
-              effect: "NoSchedule"
-        cainjector:
-          replicaCount: 2
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Equal"
-              value: "true"
-              effect: "NoSchedule"
-          extraArgs:
-            - --leader-election-lease-duration=30s
-        webhook:
-          tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Equal"
-              value: "true"
-              effect: "NoSchedule"
+        installCRDs: true
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
