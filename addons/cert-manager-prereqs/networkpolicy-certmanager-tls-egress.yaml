@@ -8,7 +8,12 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+      - ports:
+          - protocol: TCP
+            port: 10250
   egress:
     - to:
         - ipBlock:
