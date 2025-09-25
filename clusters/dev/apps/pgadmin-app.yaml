@@ -43,14 +43,16 @@ spec:
             memory: 512Mi
           limits:
             cpu: 500m
-            memory: 768Mi   
+            memory: 768Mi
+        # --- FIX: This block and the next two were indented ---
         startupProbe:
-            enabled: true
-            initialDelaySeconds: 20
-            periodSeconds: 5
-            timeoutSeconds: 5
-            successThreshold: 1
-            failureThreshold: 20
+          enabled: true
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 20
+        # --- FIX: This block was indented ---
         readinessProbe:
           enabled: true
           initialDelaySeconds: 30
@@ -58,6 +60,7 @@ spec:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
+        # --- FIX: This line was indented ---
         existingSecret: pgadmin-auth
   destination:
     server: https://kubernetes.default.svc
