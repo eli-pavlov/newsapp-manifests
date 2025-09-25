@@ -10,9 +10,10 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: certmgr-crd-check       # <- use the SA we created
       containers:
       - name: check
-        image: bitnami/kubectl:latest
+        image: bitnami/kubectl:1.27.4              # pin an explicit kubectl image tag (recommended)
         command:
           - sh
           - -c

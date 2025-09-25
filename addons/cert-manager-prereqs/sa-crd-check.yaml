@@ -1,0 +1,33 @@
+# clusters/addons/cert-manager-prereqs/sa-crd-check.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: certmgr-crd-check
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: certmgr-crd-check-role
+rules:
+  # allow reading CRDs (kubectl get crd ...)
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+  # optional: allow listing namespaces if your job needs it later
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: certmgr-crd-check-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: certmgr-crd-check-role
+subjects:
+  - kind: ServiceAccount
+    name: certmgr-crd-check
+    namespace: argocd
