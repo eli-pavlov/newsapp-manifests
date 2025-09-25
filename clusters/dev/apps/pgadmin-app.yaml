@@ -48,9 +48,6 @@ spec:
             cpu: 500m
             memory: 768Mi
         startupProbe:
-          httpGet:
-            path: /
-            port: 80
           initialDelaySeconds: 60
           periodSeconds: 5
           timeoutSeconds: 5
@@ -58,15 +55,11 @@ spec:
           failureThreshold: 20
 
         readinessProbe:
-          httpGet:
-            path: /
-            port: 80
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
-
         existingSecret: pgadmin-auth
   destination:
     server: https://kubernetes.default.svc
