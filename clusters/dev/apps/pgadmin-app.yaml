@@ -16,13 +16,16 @@ spec:
       releaseName: pgadmin-dev
       values: |
         replicaCount: 1
+
         image:
           repository: dpage/pgadmin4
           tag: "9.8"
           pullPolicy: IfNotPresent
+
         service:
           type: ClusterIP
           port: 80
+
         ingress:
           enabled: true
           ingressClassName: nginx
@@ -44,23 +47,26 @@ spec:
           limits:
             cpu: 500m
             memory: 768Mi
-        # --- FIX: This block and the next two were indented ---
         startupProbe:
-          enabled: true
+          httpGet:
+            path: /
+            port: 80
           initialDelaySeconds: 60
           periodSeconds: 5
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 20
-        # --- FIX: This block was indented ---
+
         readinessProbe:
-          enabled: true
+          httpGet:
+            path: /
+            port: 80
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
-        # --- FIX: This line was indented ---
+
         existingSecret: pgadmin-auth
   destination:
     server: https://kubernetes.default.svc
