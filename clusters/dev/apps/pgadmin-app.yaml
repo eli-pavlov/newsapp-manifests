@@ -14,22 +14,26 @@ spec:
     targetRevision: 1.50.0
     helm:
       releaseName: pgadmin-dev
+      # chart values (literal block)
       values: |
-        replicaCount: 2
+        # Use a single replica when using ReadWriteOnce persistent storage.
+        replicaCount: 1
+
         image:
           repository: dpage/pgadmin4
           tag: "9.8"
           pullPolicy: IfNotPresent
+
         service:
           type: ClusterIP
           port: 80
-          # targetPort usually 80 inside the container
+
         ingress:
           enabled: true
           ingressClassName: nginx
           annotations:
             kubernetes.io/ingress.class: "nginx"
-            # optional: limit access by IP range
+            # optional: restrict access by IP range
             # nginx.ingress.kubernetes.io/whitelist-source-range: "x.x.x.x/32,y.y.y.y/32"
           hosts:
             - host: pgadmin-dev.weblightenment.com
@@ -40,6 +44,7 @@ spec:
             - secretName: pgadmin-dev-tls
               hosts:
                 - pgadmin-dev.weblightenment.com
+
         resources:
           requests:
             cpu: 100m
@@ -47,20 +52,42 @@ spec:
           limits:
             cpu: 200m
             memory: 512Mi
-        startupProbe:
-          initialDelaySeconds: 10
-          periodSeconds: 5
+
+        # Persist pgAdmin data with a PVC (chart will create the PVC)
+        persistentVolume:
+          enabled: true
+          accessMode: ReadWriteOnce
+          size: 5Gi
+          # leave storageClass empty to use the cluster default StorageClass,
+          # or set it to a RWX-capable class if you truly need >1 replica
+          storageClass: ""
+
+        # Probes - chart supports liveness/readiness; startupProbe may be ignored
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
           timeoutSeconds: 5
-          successThreshold: 1
-          failureThreshold: 20
+          failureThreshold: 3
+
         readinessProbe:
+          httpGet:
+            path: /
+            port: 80
           initialDelaySeconds: 15
           periodSeconds: 10
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
-        # tell chart to load UI admin creds from an existing secret (see notes)
+
+        # Use existing secret for admin creds
         existingSecret: pgadmin-auth
+
+        # For dev-only ephemeral storage (alternative) you could set:
+        # persistentVolume.enabled: false
+        # and optionally run replicaCount: 2 (each pod gets its own ephemeral storage)
   destination:
     server: https://kubernetes.default.svc
     namespace: development
