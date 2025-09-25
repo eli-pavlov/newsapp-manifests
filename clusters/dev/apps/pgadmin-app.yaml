@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://helm.runix.net
     chart: pgadmin4
-    targetRevision: "1.50.0"
+    targetRevision: 1.50.0
     helm:
       releaseName: pgadmin-dev
       values: |
@@ -23,11 +23,14 @@ spec:
         service:
           type: ClusterIP
           port: 80
+          # targetPort usually 80 inside the container
         ingress:
           enabled: true
           ingressClassName: nginx
           annotations:
             kubernetes.io/ingress.class: "nginx"
+            # optional: limit access by IP range
+            # nginx.ingress.kubernetes.io/whitelist-source-range: "x.x.x.x/32,y.y.y.y/32"
           hosts:
             - host: pgadmin-dev.weblightenment.com
               paths:
@@ -51,9 +54,10 @@ spec:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 20
-          path: /misc/ping
-          port: http
-          scheme: HTTP
+          httpGet:
+            path: /misc/ping
+            port: http
+            scheme: HTTP
         readinessProbe:
           enabled: true
           initialDelaySeconds: 15
@@ -61,9 +65,13 @@ spec:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
-          path: /misc/ping
-          port: http
-          scheme: HTTP
+          httpGet:
+            path: /misc/ping
+            port: http
+            scheme: HTTP
+        persistence:
+          subPath: ""  # Explicitly set empty to match live rendering
+        # tell chart to load UI admin creds from an existing secret (see notes)
         existingSecret: pgadmin-auth
   destination:
     server: https://kubernetes.default.svc
@@ -75,15 +83,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /metadata/annotations
-        - /spec/template/metadata/annotations
-        - /status
-    - group: apps
-      kind: ReplicaSet
-      jsonPointers:
-        - /metadata/annotations
-        - /status
