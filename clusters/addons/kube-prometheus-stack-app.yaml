@@ -14,6 +14,8 @@ spec:
     helm:
       releaseName: prometheus
       values: |
+        # Install CRDs (PrometheusRule, ServiceMonitor, etc.)
+        installCRDs: true
         # Basic overrides: disable ingress for Grafana (add if needed), expose via NodePort for access
         grafana:
           service:
@@ -42,8 +44,7 @@ spec:
           alertmanagerSpec:
             nodeSelector:
               role: application
-        # Install CRDs (PrometheusRule, ServiceMonitor, etc.)
-        installCRDs: true
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
