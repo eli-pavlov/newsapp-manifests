@@ -57,6 +57,7 @@ metadata:
   namespace: development
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   secretName: newsapp-db-dev-tls
   dnsNames:
