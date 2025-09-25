@@ -39,7 +39,7 @@ spec:
                 - pgadmin-dev.weblightenment.com
         resources:
           requests:
-            cpu: 100m
+            cpu: 200m
             memory: 512Mi
           limits:
             cpu: 500m
@@ -47,7 +47,7 @@ spec:
         # --- FIX: This block and the next two were indented ---
         startupProbe:
           enabled: true
-          initialDelaySeconds: 20
+          initialDelaySeconds: 60
           periodSeconds: 5
           timeoutSeconds: 5
           successThreshold: 1
@@ -55,7 +55,7 @@ spec:
         # --- FIX: This block was indented ---
         readinessProbe:
           enabled: true
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
           successThreshold: 1
