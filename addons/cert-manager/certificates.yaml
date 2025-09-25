@@ -100,7 +100,7 @@ spec:
     name: letsencrypt-staging
     kind: ClusterIssuer
 ---
-### Cert for Grafana
+### Cert for Grafana.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
