@@ -51,13 +51,13 @@ spec:
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 20
-          readinessProbe:
-            enabled: true
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            successThreshold: 1
-            failureThreshold: 6
+        readinessProbe:
+          enabled: true
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
         existingSecret: pgadmin-auth
   destination:
     server: https://kubernetes.default.svc
