@@ -18,6 +18,14 @@ spec:
       releaseName: cert-manager
       values: |
         installCRDs: true
+        webhook:
+          startupProbe:
+            enabled: true
+            failureThreshold: 60
+            periodSeconds: 5
+            httpGet:
+              path: /readyz
+              port: 9443
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

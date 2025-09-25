@@ -1,0 +1,27 @@
+# clusters/addons/cert-manager-prereqs/app-precheck-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-manager-crd-check
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+      - name: check
+        image: bitnami/kubectl:latest
+        command:
+          - sh
+          - -c
+          - |
+            for i in $(seq 1 30); do
+              kubectl get crd certificates.cert-manager.io && kubectl get crd issuers.cert-manager.io && exit 0 || true
+              echo "waiting for cert-manager CRDs..."
+              sleep 5
+            done
+            echo "CRDs not present"
+            exit 1
+      restartPolicy: Never
