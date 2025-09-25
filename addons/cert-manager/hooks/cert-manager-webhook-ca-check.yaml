@@ -12,7 +12,7 @@ spec:
       serviceAccountName: certmgr-webhook-check
       containers:
       - name: check
-        image: bitnami/kubectl:latest
+        image: bitnami/kubectl:1.27.4
         command:
           - sh
           - -c

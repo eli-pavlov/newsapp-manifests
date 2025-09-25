@@ -6,12 +6,13 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-95"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
 spec:
   project: default
   source:
     repoURL: https://github.com/eli-pavlov/newsapp-manifests.git
     targetRevision: main
-    path: addons/cert-manager-prereqs
+    path: clusters/addons/cert-manager-prereqs
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
