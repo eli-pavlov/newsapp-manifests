@@ -75,15 +75,16 @@ spec:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
+        # -- END CORRECTION --
         existingSecret: pgadmin-auth
-          ignoreDifferences:
-        - group: apps
-          kind: Deployment
-          jsonPointers:
-          - /spec/template/spec/containers/0/startupProbe/httpGet
   destination:
     server: https://kubernetes.default.svc
     namespace: development
+  ignoreDifference:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+        - /spec/template/spec/containers/0/startupProbe/httpGet
   syncPolicy:
     automated:
       prune: true
