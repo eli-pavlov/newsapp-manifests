@@ -93,5 +93,21 @@ spec:
   issuerRef:
     name: letsencrypt-staging
     kind: ClusterIssuer
+---
+### Cert for Grafana
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-grafana-weblightenment-com
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: grafana-tls
+  dnsNames:
+    - grafana.weblightenment.com
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
 
 

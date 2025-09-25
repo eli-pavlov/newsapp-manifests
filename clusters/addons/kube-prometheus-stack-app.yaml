@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-50"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 77.11.0
+    helm:
+      releaseName: prometheus
+      values: |
+        # Basic overrides: disable ingress for Grafana (add if needed), expose via NodePort for access
+        grafana:
+          service:
+            type: NodePort
+            nodePort: 30090  # Access Grafana at <node-ip>:30090 (default admin/prom-operator)
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - grafana.weblightenment.com
+            path: /
+            pathType: Prefix
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-staging
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: HTTP
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - grafana.weblightenment.com
+        prometheus:
+          prometheusSpec:
+            nodeSelector:
+              role: application  # Align with app nodes to avoid taints
+        alertmanager:
+          alertmanagerSpec:
+            nodeSelector:
+              role: application
+        # Install CRDs (PrometheusRule, ServiceMonitor, etc.)
+        installCRDs: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
