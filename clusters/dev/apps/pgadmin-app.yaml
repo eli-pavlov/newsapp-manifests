@@ -68,10 +68,6 @@ spec:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 20
-          httpGet:
-            path: /misc/ping
-            port: http
-            scheme: HTTP
         readinessProbe:
           enabled: true
           initialDelaySeconds: 15
@@ -79,11 +75,7 @@ spec:
           timeoutSeconds: 5
           successThreshold: 1
           failureThreshold: 6
-          httpGet:
-            path: /misc/ping
-            port: http
-            scheme: HTTP
-        # tell chart to load UI admin creds from an existing secret (see notes)
+        # -- END CORRECTION --
         existingSecret: pgadmin-auth
   destination:
     server: https://kubernetes.default.svc
