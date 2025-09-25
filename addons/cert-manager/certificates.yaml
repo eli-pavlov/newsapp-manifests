@@ -6,6 +6,8 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller","cert-manager-helm"]'
+
 spec:
   secretName: argocd-tls
   dnsNames:
@@ -22,6 +24,7 @@ metadata:
   namespace: default
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["sealed-secrets-controller","cert-manager-helm"]'
 spec:
   secretName: newsapp-tls
   dnsNames:

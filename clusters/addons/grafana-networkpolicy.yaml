@@ -3,7 +3,9 @@ kind: NetworkPolicy
 metadata:
   name: grafana-allow-ingress-from-ingress-nginx
   namespace: monitoring
-spec:
+  annotations:
+      argocd.argoproj.io/sync-wave: "30"
+  spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: grafana
