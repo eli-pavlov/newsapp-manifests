@@ -15,7 +15,7 @@ spec:
     helm:
       releaseName: pgadmin-dev
       values: |
-        replicaCount: 2
+        replicaCount: 1
         image:
           repository: dpage/pgadmin4
           tag: "9.8"
