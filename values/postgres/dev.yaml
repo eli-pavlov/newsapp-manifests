@@ -10,10 +10,13 @@ storage:
 
 dbName: newsdb_dev
 
-existingSecret:
-  name: postgres-credentials
-  userKey: POSTGRES_USER
-  passwordKey: POSTGRES_PASSWORD
+credentials:
+  userSecret:
+    name: "db-user"
+    key: "DB_USER"
+  passwordSecret:
+    name: "db-password"
+    key: "DB_PASSWORD"
 
 nodeSelector:
   role: database
