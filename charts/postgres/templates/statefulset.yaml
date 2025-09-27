@@ -80,8 +80,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.credentials.passwordSecret.name }}
                   key: {{ .Values.credentials.passwordSecret.key }}
-                  - name: PGDATA
-                    value: /var/lib/postgresql/data/pgdata
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           readinessProbe:
             exec:
               command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -h 127.0.0.1 -p 5432"]
