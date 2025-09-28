@@ -32,10 +32,7 @@ spec:
               cert-manager.io/cluster-issuer: letsencrypt-staging
               nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
               nginx.ingress.kubernetes.io/backend-protocol: HTTP
-            tls:
-              - secretName: grafana-tls
-                hosts:
-                  - grafana.weblightenment.com
+              
         prometheus:
           prometheusSpec:
             nodeSelector:

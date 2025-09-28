@@ -20,8 +20,16 @@ spec:
     - namespace: monitoring
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: apps
+      kind: Deployment
+    - group: policy
+      kind: PodDisruptionBudget
   namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: networking.k8s.io
+      kind: Ingress
