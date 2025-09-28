@@ -15,5 +15,15 @@ spec:
       values: |
         falco:
           rules: [...]
+    project: default
   destination:
+    server: https://kubernetes.default.svc
     namespace: falco
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+        - ApplyOutOfSyncOnly=true
+        
