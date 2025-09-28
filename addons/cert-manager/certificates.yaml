@@ -1,4 +1,4 @@
-# Cert for ArgoCD (prod)
+# Cert for ArgoCD
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -12,7 +12,7 @@ spec:
   dnsNames:
     - argocd.weblightenment.com
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-dns01-cloudflare
     kind: ClusterIssuer
 ---
 # Cert for frontend (prod)
@@ -29,7 +29,7 @@ spec:
   dnsNames:
     - newsapp.weblightenment.com
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-dns01-cloudflare
     kind: ClusterIssuer
 ---
 # Cert for frontend (dev)
@@ -97,7 +97,7 @@ spec:
   dnsNames:
     - pgadmin-dev.weblightenment.com
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-dns01-cloudflare
     kind: ClusterIssuer
 ---
 ### Cert for Grafana
@@ -114,7 +114,7 @@ spec:
   dnsNames:
     - grafana.weblightenment.com
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-dns01-cloudflare
     kind: ClusterIssuer
 
 
