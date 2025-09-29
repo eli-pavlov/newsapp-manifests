@@ -14,15 +14,8 @@ service:
   type: ClusterIP
   port: 3000
 
-# Pod-level securityContext defaults (can be overridden per-env)
-podSecurityContext:
-  runAsUser: 1000
-  fsGroup: 1000
-
-# Container-level securityContext defaults (can be overridden per-env)
-containerSecurityContext:
-  runAsUser: 1000
-  allowPrivilegeEscalation: false
+podSecurityContext: {}
+containerSecurityContext: {}
 
 resources:
   requests:
@@ -42,7 +35,6 @@ env:
   plain: {}
   secretRef: ""
   configRef: ""
-  secretRefs: []
 
 hpa:
   enabled: false
@@ -91,15 +83,3 @@ networkPolicy:
         matchLabels:
           app.kubernetes.io/name: postgresql
       dbPort: 5432
-
-# --------- Ephemeral persistence (emptyDir) configuration ----------
-persistence:
-  enabled: false             # set true to create the emptyDir mount in pod
-  type: emptyDir             # only "emptyDir" supported by this chart snippet
-  mountPath: /app/uploads    # <<< default set to path the app expects
-  # chown settings are not required with chmod approach but kept for backward compat
-  chown:
-    enabled: false
-    uid: 1000
-    gid: 1000
-    runAsUser: 0

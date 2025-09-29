@@ -1,3 +1,4 @@
+# values/backend/prod.yaml
 app:
   name: backend
   syncWave: "1"
@@ -32,8 +33,8 @@ resources:
     memory: 512Mi
 env:
   plain:
-    DISK_ROOT_PATH: "/app/uploads"
     DB_ENGINE_TYPE: "POSTGRES"
+  # list every SealedSecret name (these are created in the default namespace under clusters/prod/sealed)
   secretRefs:
     - storage-type
     - aws-secret-access-key
@@ -58,22 +59,3 @@ networkPolicy:
       matchLabels:
         app.kubernetes.io/name: postgresql-prod
     dbPort: 5432
-
-# Enable ephemeral emptyDir mount for transient data
-persistence:
-  enabled: true
-  type: emptyDir
-  mountPath: /app/uploads
-  chown:
-    enabled: false
-    uid: 1000
-    gid: 1000
-    runAsUser: 0
-
-podSecurityContext:
-  runAsUser: 1000
-  fsGroup: 1000
-
-containerSecurityContext:
-  runAsUser: 1000
-  allowPrivilegeEscalation: false
