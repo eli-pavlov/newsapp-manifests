@@ -59,3 +59,13 @@ networkPolicy:
       matchLabels:
         app.kubernetes.io/name: postgresql-prod
     dbPort: 5432
+# persistence for ephemeral (emptyDir) mounts
+persistence:
+  enabled: true             # set to true to enable the emptyDir mount
+  type: emptyDir            # only "emptyDir" for this flow
+  mountPath: /data/uploads  # path inside container your app will write to
+  # If your container runs as non-root, enable chown to set ownership inside the pod.
+  chown:
+    enabled: true
+    uid: 1000
+    gid: 1000
