@@ -57,23 +57,3 @@ networkPolicy:
       matchLabels:
         app.kubernetes.io/name: postgresql-dev
     dbPort: 5432
-<<<<<<< HEAD
-=======
-# Enable ephemeral emptyDir mount for transient data
-persistence:
-  enabled: true
-  type: emptyDir
-  mountPath: /app/uploads
-  chown:
-    enabled: false # using chmod 0777 initContainer, chown not required
-    uid: 1000
-    gid: 1000
-    runAsUser: 0
-# Ensure the container/pod security context matches (recommended)
-podSecurityContext:
-  runAsUser: 1000
-  fsGroup: 1000
-containerSecurityContext:
-  runAsUser: 1000
-  allowPrivilegeEscalation: false
->>>>>>> 71f61afa045cd3e73b0eb7f1db12302b333a15b4
