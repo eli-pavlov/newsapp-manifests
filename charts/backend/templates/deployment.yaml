@@ -42,9 +42,14 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
 
+      {{- /* Compute DB-related template variables outside the literal block to avoid breaking YAML */ -}}
+      {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict -}}
+      {{- $dbName := index $dbSelector "app.kubernetes.io/name" | default "postgresql" -}}
+      {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" -}}
+      {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 -}}
+
       initContainers:
-{{- if .Values.persistence.enabled }}
-        # Ensure /app/uploads exists and is writable by anyone (chmod 0777)
+{{- if and .Values.persistence.enabled }}
         - name: fix-uploads-perms
           image: busybox:1.36
           command:
@@ -73,7 +78,7 @@ spec:
               i=0
               while [ $i -lt 60 ]; do
                 i=$((i + 1))
-                if pg_isready -h {{ .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels.app.kubernetes.io/name | default "postgresql" }}-client.{{ .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}.svc.cluster.local -p {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }} >/dev/null 2>&1; then
+                if pg_isready -h {{ printf "%s-client.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }} >/dev/null 2>&1; then
                   echo "DB is ready!"
                   exit 0
                 fi
@@ -108,7 +113,7 @@ spec:
               value: "{{ $v }}"
             {{- end }}
 
-          {{- /* envFrom support */ -}}
+          {{- /* envFrom: support singular secretRef (back compat) and a list secretRefs (preferred) */ -}}
           {{- $cfgRef := .Values.env.configRef -}}
           {{- $secretRef := .Values.env.secretRef -}}
           {{- $secretRefs := .Values.env.secretRefs -}}
@@ -117,9 +122,11 @@ spec:
             {{- if $cfgRef }}
             - configMapRef: { name: {{ $cfgRef }} }
             {{- end }}
+
             {{- if and (not $secretRefs) $secretRef }}
             - secretRef: { name: {{ $secretRef }} }
             {{- end }}
+
             {{- if $secretRefs }}
             {{- range $i, $s := $secretRefs }}
             - secretRef: { name: {{ $s }} }
