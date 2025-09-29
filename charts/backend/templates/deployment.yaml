@@ -1,3 +1,8 @@
+{{- /* Compute DB-related template variables outside the literal block to avoid breaking YAML */ -}}
+{{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict -}}
+{{- $dbName := index $dbSelector "app.kubernetes.io/name" | default "postgresql" -}}
+{{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" -}}
+{{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -42,32 +47,7 @@ spec:
 {{ toYaml . | indent 8 }}
       {{- end }}
 
-      {{- /* Compute DB-related template variables outside the literal block to avoid breaking YAML */ -}}
-      {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict -}}
-      {{- $dbName := index $dbSelector "app.kubernetes.io/name" | default "postgresql" -}}
-      {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" -}}
-      {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 -}}
-
       initContainers:
-{{- if and .Values.persistence.enabled }}
-        - name: fix-uploads-perms
-          image: busybox:1.36
-          command:
-            - sh
-            - -c
-            - |
-              set -e
-              echo "init: mkdir/chmod {{ .Values.persistence.mountPath }}"
-              mkdir -p {{ .Values.persistence.mountPath }}
-              # make world-writable so unknown/non-root UID can write
-              chmod 0777 {{ .Values.persistence.mountPath }} || true
-          securityContext:
-            runAsUser: 0
-          volumeMounts:
-            - name: uploads
-              mountPath: {{ .Values.persistence.mountPath | quote }}
-{{- end }}
-
         - name: wait-for-db
           image: postgres:17-alpine
           command:
