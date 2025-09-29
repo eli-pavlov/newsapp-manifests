@@ -21,75 +21,74 @@ spec:
       imagePullSecrets:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
       {{- with .Values.podSecurityContext }}
       securityContext:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
       {{- with .Values.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
       {{- end }}
+
       {{- with .Values.affinity }}
       affinity:
 {{ toYaml . | indent 8 }}
       {{- end }}
 
-      {{- /* Compute DB-related template variables outside the literal block to avoid breaking YAML */ -}}
-      {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict }}
-      {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" }}
-      {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}
-      {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
-
+      {{- /* initContainers: place the chown init first so ownership is fixed quickly */ -}}
       initContainers:
-        - name: wait-for-db
-          image: postgres:17-alpine
-          command:
-            - sh
-            - -c
-            - |
-              #!/bin/sh
-              i=0
-              while [ $i -lt 60 ]; do
-                i=$((i + 1))
-                if pg_isready -h {{ printf "%s-client.%s.svc.cluster.local" $dbName $ns }} -p {{ $port }} >/dev/null 2>&1; then
-                  echo "DB is ready!"
-                  exit 0
-                fi
-                echo "Waiting for DB (attempt $i/60)..."
-                sleep 5
-              done
-
-              echo "DB timeout after 5 min"
-              exit 1
-          resources:
-            limits:
-              cpu: 100m
-              memory: 128Mi
-            requests:
-              cpu: 50m
-              memory: 64Mi
-
-      {{- /* optional chown initContainer for emptyDir mount so non-root app can write */ -}}
-      {{- if and .Values.persistence.enabled (eq .Values.persistence.type "emptyDir") }}
+{{- if and .Values.persistence.enabled (eq .Values.persistence.type "emptyDir") }}
         - name: fix-uploads-perms
           image: busybox:1.36
           command:
             - sh
             - -c
             - |
-              # tolerate missing dir (emptyDir will be created), attempt chown so non-root app can write
-              echo "fix-uploads-perms: ensure ownership {{ .Values.persistence.chown.uid }}:{{ .Values.persistence.chown.gid }} for {{ .Values.persistence.mountPath }}"
+              set -e
+              echo "Ensuring {{ .Values.persistence.mountPath }} exists and owned by {{ .Values.persistence.chown.uid }}:{{ .Values.persistence.chown.gid }}"
+              mkdir -p {{ .Values.persistence.mountPath }}
               chown -R {{ .Values.persistence.chown.uid }}:{{ .Values.persistence.chown.gid }} {{ .Values.persistence.mountPath }} || true
           securityContext:
-            runAsUser: 0
+            runAsUser: {{ .Values.persistence.chown.runAsUser | default 0 }}
           volumeMounts:
             - name: uploads
               mountPath: {{ .Values.persistence.mountPath | quote }}
-      {{- end }}
+{{- end }}
+
+      - name: wait-for-db
+        image: postgres:17-alpine
+        command:
+          - sh
+          - -c
+          - |
+            #!/bin/sh
+            i=0
+            while [ $i -lt 60 ]; do
+              i=$((i + 1))
+              if pg_isready -h {{ (index (pluck "app.kubernetes.io/name" .Values.networkPolicy.backendEgressDb.dbSelector) 0) | default (index .Values.networkPolicy.backendEgressDb.dbSelector "app.kubernetes.io/name") | default "postgresql" }}-client.{{ .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}.svc.cluster.local -p {{ .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }} >/dev/null 2>&1; then
+                echo "DB is ready!"
+                exit 0
+              fi
+              echo "Waiting for DB (attempt $i/60)..."
+              sleep 5
+            done
+
+            echo "DB timeout after 5 min"
+            exit 1
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
 
       containers:
         - name: {{ include "backend.name" . }}
@@ -107,7 +106,7 @@ spec:
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
-          {{- /* envFrom: support singular secretRef (back compat) and a list secretRefs (preferred) */ -}}
+          {{- /* envFrom support */ -}}
           {{- $cfgRef := .Values.env.configRef -}}
           {{- $secretRef := .Values.env.secretRef -}}
           {{- $secretRefs := .Values.env.secretRefs -}}
@@ -116,21 +115,25 @@ spec:
             {{- if $cfgRef }}
             - configMapRef: { name: {{ $cfgRef }} }
             {{- end }}
-
-            {{- /* Support singular secretRef for backward compatibility */ -}}
             {{- if and (not $secretRefs) $secretRef }}
             - secretRef: { name: {{ $secretRef }} }
             {{- end }}
-
-            {{- /* Support a list of secret names */ -}}
             {{- if $secretRefs }}
             {{- range $i, $s := $secretRefs }}
             - secretRef: { name: {{ $s }} }
             {{- end }}
             {{- end }}
           {{- end }}
+
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+
+          {{- /* container-level securityContext from values */ -}}
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+{{ toYaml . | indent 12 }}
+          {{- end }}
+
           {{- with .Values.probes }}
           {{- if .readiness.enabled }}
           readinessProbe:

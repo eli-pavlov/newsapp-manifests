@@ -33,7 +33,7 @@ resources:
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
-    DISK_ROOT_PATH: "/data/uploads"
+    DISK_ROOT_PATH: "/app/uploads"   # <- app expects /app/uploads
   secretRefs:
     - storage-type
     - aws-secret-access-key
@@ -63,15 +63,18 @@ networkPolicy:
 persistence:
   enabled: true
   type: emptyDir
-  mountPath: /data/uploads
+  mountPath: /app/uploads   # <<< must match what the app uses
   chown:
     enabled: true
     uid: 1000
     gid: 1000
+    runAsUser: 0
 
 # Ensure the container/pod security context matches chown (optional but recommended)
 podSecurityContext:
+  runAsUser: 1000
   fsGroup: 1000
 
 containerSecurityContext:
   runAsUser: 1000
+  allowPrivilegeEscalation: false

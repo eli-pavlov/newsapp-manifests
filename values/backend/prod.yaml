@@ -1,4 +1,3 @@
-# values/backend/prod.yaml
 app:
   name: backend
   syncWave: "1"
@@ -34,7 +33,6 @@ resources:
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
-  # list every SealedSecret name (these are created in the default namespace under clusters/prod/sealed)
   secretRefs:
     - storage-type
     - aws-secret-access-key
@@ -64,15 +62,18 @@ networkPolicy:
 persistence:
   enabled: true
   type: emptyDir
-  mountPath: /data/uploads
+  mountPath: /app/uploads   # <<< must match what the app uses
   chown:
     enabled: true
     uid: 1000
     gid: 1000
+    runAsUser: 0
 
 # Ensure the container/pod security context matches chown (optional but recommended)
 podSecurityContext:
+  runAsUser: 1000
   fsGroup: 1000
 
 containerSecurityContext:
   runAsUser: 1000
+  allowPrivilegeEscalation: false
