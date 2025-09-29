@@ -43,7 +43,9 @@ spec:
       {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" }}
       {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}
       {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
-
+      volumes:
+        - name: uploads-dir
+          emptyDir: {}
       initContainers:
         - name: wait-for-db
           image: postgres:17-alpine
@@ -80,6 +82,9 @@ spec:
           ports:
             - containerPort: {{ .Values.service.port }}
               name: http
+          volumeMounts:
+            - name: uploads-dir
+              mountPath: /app/uploads
           env:
             - name: POD_NAMESPACE
               valueFrom:
