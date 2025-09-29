@@ -2,7 +2,7 @@ app:
   name: backend
   syncWave: "1"
 fullnameOverride: backend
-replicaCount: 2
+replicaCount: 1
 image:
   repository: elipavlov/newsapp-backend
   tag: dev-0b12bce
