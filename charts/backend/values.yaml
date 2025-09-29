@@ -96,14 +96,14 @@ persistence:
     uid: 1000
     gid: 1000
 
-# Security defaults you can override per-environment:
-security:
-  uid: 1000
-  gid: 1000
+  # Security defaults you can override per-environment:
+  security:
+    uid: 1000
+    gid: 1000
 
-# Provide explicit pod / container security context defaults
-podSecurityContext:
-  fsGroup: 1000
+  # Provide explicit pod / container security context defaults
+  podSecurityContext:
+    fsGroup: 1000
 
-containerSecurityContext:
-  runAsUser: 1000
+  containerSecurityContext:
+    runAsUser: 1000
