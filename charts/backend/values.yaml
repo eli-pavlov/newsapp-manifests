@@ -83,3 +83,27 @@ networkPolicy:
         matchLabels:
           app.kubernetes.io/name: postgresql
       dbPort: 5432
+
+# --------- Ephemeral persistence (emptyDir) configuration ----------
+persistence:
+  enabled: false             # set true to create the emptyDir mount in pod
+  type: emptyDir            # only "emptyDir" supported by this chart snippet
+  mountPath: /data/uploads  # path inside container where app writes transient files
+
+  # chown settings for the initContainer (useful when the container runs non-root)
+  chown:
+    enabled: true
+    uid: 1000
+    gid: 1000
+
+# Security defaults you can override per-environment:
+security:
+  uid: 1000
+  gid: 1000
+
+# Provide explicit pod / container security context defaults
+podSecurityContext:
+  fsGroup: 1000
+
+containerSecurityContext:
+  runAsUser: 1000
