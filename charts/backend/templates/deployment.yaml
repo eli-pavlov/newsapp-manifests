@@ -19,34 +19,36 @@ spec:
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-{{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.podSecurityContext }}
       securityContext:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-{{ toYaml . | indent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- /* Compute DB-related template variables outside the literal block to avoid breaking YAML */ -}}
-      {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict }}
-      {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" }}
-      {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}
-      {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
+      securityContext:
+        # Ensures the volume is group-writable by the 'app' group (GID 101).
+        fsGroup: 101
+
       volumes:
         - name: uploads-dir
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            # This PVC must be created separately from the deployment.
+            claimName: {{ .Values.persistence.claimName | default (printf "%s-uploads" (include "backend.fullname" .)) }}
+          {{- else }}
           emptyDir: {}
+          {{- end }}
+
       initContainers:
+        - name: volume-permission-fix
+          image: busybox
+          command: ['sh', '-c', 'chown -R 100:101 /app/uploads']
+          volumeMounts:
+            # CORRECTED: Name and indentation are now correct.
+            - name: uploads-dir
+              mountPath: /app/uploads
+        
         - name: wait-for-db
           image: postgres:17-alpine
           command:
@@ -54,6 +56,10 @@ spec:
             - -c
             - |
               #!/bin/sh
+              {{- $dbSelector := .Values.networkPolicy.backendEgressDb.dbSelector.matchLabels | default dict }}
+              {{- $dbName := (index $dbSelector "app.kubernetes.io/name") | default "postgresql" }}
+              {{- $ns := .Values.networkPolicy.backendEgressDb.dbNamespace | default .Release.Namespace | default "development" }}
+              {{- $port := .Values.networkPolicy.backendEgressDb.dbPort | default 5432 }}
               i=0
               while [ $i -lt 60 ]; do
                 i=$((i + 1))
@@ -64,7 +70,6 @@ spec:
                 echo "Waiting for DB (attempt $i/60)..."
                 sleep 5
               done
-
               echo "DB timeout after 5 min"
               exit 1
           resources:
@@ -94,7 +99,6 @@ spec:
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
-          {{- /* envFrom: support singular secretRef (back compat) and a list secretRefs (preferred) */ -}}
           {{- $cfgRef := .Values.env.configRef -}}
           {{- $secretRef := .Values.env.secretRef -}}
           {{- $secretRefs := .Values.env.secretRefs -}}
@@ -103,13 +107,9 @@ spec:
             {{- if $cfgRef }}
             - configMapRef: { name: {{ $cfgRef }} }
             {{- end }}
-
-            {{- /* Support singular secretRef for backward compatibility */ -}}
             {{- if and (not $secretRefs) $secretRef }}
             - secretRef: { name: {{ $secretRef }} }
             {{- end }}
-
-            {{- /* Support a list of secret names */ -}}
             {{- if $secretRefs }}
             {{- range $i, $s := $secretRefs }}
             - secretRef: { name: {{ $s }} }
@@ -117,18 +117,18 @@ spec:
             {{- end }}
           {{- end }}
           resources:
-{{ toYaml .Values.resources | indent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.probes }}
           {{- if .readiness.enabled }}
           readinessProbe:
             {{- if eq (.readiness.type | default "http") "http" }}
             httpGet:
               path: {{ .readiness.path | quote }}
-              port: {{ $.Values.service.port }}
+              port: http
               scheme: {{ .readiness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .readiness.port | default $.Values.service.port }}
+              port: http
             {{- end }}
             initialDelaySeconds: {{ .readiness.initialDelaySeconds | default 5 }}
             periodSeconds: {{ .readiness.periodSeconds | default 10 }}
@@ -141,11 +141,11 @@ spec:
             {{- if eq (.liveness.type | default "http") "http" }}
             httpGet:
               path: {{ .liveness.path | quote }}
-              port: {{ $.Values.service.port }}
+              port: http
               scheme: {{ .liveness.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .liveness.port | default $.Values.service.port }}
+              port: http
             {{- end }}
             initialDelaySeconds: {{ .liveness.initialDelaySeconds | default 30 }}
             periodSeconds: {{ .liveness.periodSeconds | default 10 }}
@@ -158,13 +158,25 @@ spec:
             {{- if eq (.startup.type | default "http") "http" }}
             httpGet:
               path: {{ .startup.path | quote }}
-              port: {{ .Values.service.port }}
+              port: http
               scheme: {{ .startup.scheme | default "HTTP" }}
             {{- else }}
             tcpSocket:
-              port: {{ .startup.port | default $.Values.service.port }}
+              port: http
             {{- end }}
             periodSeconds: {{ .startup.periodSeconds | default 5 }}
             failureThreshold: {{ .startup.failureThreshold | default 30 }}
           {{- end }}
           {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
