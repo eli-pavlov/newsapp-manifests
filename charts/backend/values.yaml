@@ -14,8 +14,15 @@ service:
   type: ClusterIP
   port: 3000
 
-podSecurityContext: {}
-containerSecurityContext: {}
+# Pod-level securityContext defaults (can be overridden per-env)
+podSecurityContext:
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container-level securityContext defaults (can be overridden per-env)
+containerSecurityContext:
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
 
 resources:
   requests:
@@ -35,6 +42,7 @@ env:
   plain: {}
   secretRef: ""
   configRef: ""
+  secretRefs: []
 
 hpa:
   enabled: false
@@ -89,15 +97,9 @@ persistence:
   enabled: false             # set true to create the emptyDir mount in pod
   type: emptyDir             # only "emptyDir" supported by this chart snippet
   mountPath: /app/uploads    # <<< default set to path the app expects
-  # chown settings for the initContainer (useful when the container runs non-root)
+  # chown settings are not required with chmod approach but kept for backward compat
   chown:
-    enabled: true
+    enabled: false
     uid: 1000
     gid: 1000
-    # if you want the initContainer to run as a specific user, set runAsUser (0 is default root)
     runAsUser: 0
-
-# Pod-level defaults that can be overridden per-environment
-security:
-  uid: 1000
-  gid: 1000

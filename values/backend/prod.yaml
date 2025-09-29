@@ -62,14 +62,13 @@ networkPolicy:
 persistence:
   enabled: true
   type: emptyDir
-  mountPath: /app/uploads   # <<< must match what the app uses
+  mountPath: /app/uploads
   chown:
-    enabled: true
+    enabled: false
     uid: 1000
     gid: 1000
     runAsUser: 0
 
-# Ensure the container/pod security context matches chown (optional but recommended)
 podSecurityContext:
   runAsUser: 1000
   fsGroup: 1000
