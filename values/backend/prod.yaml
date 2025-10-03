@@ -59,3 +59,5 @@ networkPolicy:
       matchLabels:
         app.kubernetes.io/name: postgresql-prod
     dbPort: 5432
+persistence:
+  enabled: false
