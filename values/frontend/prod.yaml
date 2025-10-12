@@ -2,7 +2,7 @@
 app:
   name: frontend
   syncWave: "2"
-replicaCount: 2
+replicaCount: 1
 image:
   repository: elipavlov/newsapp-frontend
   tag: latest-109ff1f
