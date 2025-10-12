@@ -4,7 +4,7 @@ app:
 replicaCount: 1
 image:
   repository: elipavlov/newsapp-frontend
-  tag: dev-296aa19
+  tag: dev-7ddb2ad
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
