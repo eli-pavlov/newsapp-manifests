@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx-body-size
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  99-body-size.conf: |
+    client_max_body_size 100m;

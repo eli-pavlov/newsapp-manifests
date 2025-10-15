@@ -23,6 +23,13 @@ spec:
       labels:
 {{ include "frontend.labels" $root | indent 8 }}
     spec:
+      volumes:
+        - name: nginx-body-size
+          configMap:
+            name: frontend-nginx-body-size
+            items:
+              - key: 99-body-size.conf
+                path: 99-body-size.conf
       {{- with $root.Values.imagePullSecrets }}
       imagePullSecrets:
 {{ toYaml . | indent 8 }}
@@ -48,6 +55,11 @@ spec:
         - name: {{ include "frontend.name" $root }}
           image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          volumeMounts:
+            - name: nginx-body-size
+              mountPath: /etc/nginx/conf.d/99-body-size.conf
+              subPath: 99-body-size.conf
+              readOnly: true
           ports:
             - containerPort: {{ $root.Values.service.port }}
               name: http
