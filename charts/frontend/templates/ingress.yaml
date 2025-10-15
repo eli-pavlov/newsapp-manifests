@@ -1,5 +1,5 @@
 {{- /*
-Ingress for frontend.
+Ingress for frontend
 - We capture the root context into $root to safely reference top-level .Values inside nested ranges/with blocks.
 - Always close conditionals/with/range with matching {{- end }} to avoid unexpected EOF.
 */ -}}
