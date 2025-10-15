@@ -1,5 +1,5 @@
 {{- /*
-Ingress for frontend
+Ingress for frontend.
 - We capture the root context into $root to safely reference top-level .Values inside nested ranges/with blocks.
 - Always close conditionals/with/range with matching {{- end }} to avoid unexpected EOF.
 */ -}}
@@ -31,15 +31,6 @@ spec:
                 port:
                   number: {{ $root.Values.service.port }}
           {{- end }}
-          # ---- Minimal addition: route /api directly to backend Service ----
-          - path: /api
-            pathType: "Prefix"
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 3000
-          # -----------------------------------------------------------------
     {{- end }}
   {{- with $root.Values.ingress.tls }}
   tls:
