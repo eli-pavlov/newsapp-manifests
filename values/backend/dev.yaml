@@ -33,6 +33,7 @@ resources:
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
+    MOVIES_FOLDER: "movies"
   secretRefs:
     - storage-type
     - aws-secret-access-key
