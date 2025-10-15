@@ -36,9 +36,9 @@ spec:
             pathType: "Prefix"
             backend:
               service:
-                name: backend     # <-- change if your backend Service is named differently
+                name: backend
                 port:
-                  number: 3000    # <-- change if your backend Service port differs
+                  number: 3000
           # -----------------------------------------------------------------
     {{- end }}
   {{- with $root.Values.ingress.tls }}
