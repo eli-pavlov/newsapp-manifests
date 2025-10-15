@@ -6,7 +6,7 @@ fullnameOverride: backend
 replicaCount: 1
 image:
   repository: elipavlov/newsapp-backend
-  tag: latest-d62babb
+  tag: latest-732d71f
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
@@ -34,7 +34,7 @@ resources:
 env:
   plain:
     DB_ENGINE_TYPE: "POSTGRES"
-    MOVIES_FOLDER: "movies" 
+    MOVIES_FOLDER: "movies"
   # list every SealedSecret name (these are created in the default namespace under clusters/prod/sealed)
   secretRefs:
     - storage-type
