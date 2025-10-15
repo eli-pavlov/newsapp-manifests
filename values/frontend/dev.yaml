@@ -33,7 +33,7 @@ env:
   plain:
     VITE_SERVER_URL: "/api"
     VITE_NEWS_INTERVAL_IN_MIN: "5"
-    BACKEND_SERVICE_HOST: ""
+    BACKEND_SERVICE_HOST: "backend.development.svc.cluster.local"
     BACKEND_SERVICE_PORT: "3000"
 ingress:
   enabled: true
