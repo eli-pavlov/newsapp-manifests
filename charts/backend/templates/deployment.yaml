@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "backend.labels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "1" | quote }}
+    argocd.argoproj.io/sync-wave: {{ .Values.app.syncWave | default "2" | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -39,6 +39,12 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        - name: nginx-body-size
+          configMap:
+            name: backend-nginx-body-size
+            items:
+              - key: 99-body-size.conf
+                path: 99-body-size.conf
 
       initContainers:
         - name: volume-permission-fix
@@ -90,6 +96,10 @@ spec:
           volumeMounts:
             - name: uploads-dir
               mountPath: /app/uploads
+            - name: nginx-body-size
+              mountPath: /etc/nginx/conf.d/99-body-size.conf
+              subPath: 99-body-size.conf
+              readOnly: true
           env:
             - name: POD_NAMESPACE
               valueFrom:

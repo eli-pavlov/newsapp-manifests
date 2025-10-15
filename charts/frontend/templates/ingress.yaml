@@ -31,6 +31,15 @@ spec:
                 port:
                   number: {{ $root.Values.service.port }}
           {{- end }}
+          # ---- Minimal addition: route /api directly to backend Service ----
+          - path: /api
+            pathType: "Prefix"
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3000
+          # -----------------------------------------------------------------
     {{- end }}
   {{- with $root.Values.ingress.tls }}
   tls:
