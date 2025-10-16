@@ -5,7 +5,7 @@ fullnameOverride: backend
 replicaCount: 1
 image:
   repository: elipavlov/newsapp-backend
-  tag: dev-efb85a5
+  tag: dev-1e05c71
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
