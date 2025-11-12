@@ -5,8 +5,8 @@ service:
   type: ClusterIP
 
 storage:
-  size: 10Gi
-  storageClassName: "local-db-dev"
+  size: 20Gi
+  storageClassName: ""
 
 dbName: newsdb_dev
 

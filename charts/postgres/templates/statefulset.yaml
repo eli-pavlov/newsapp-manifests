@@ -20,92 +20,100 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "postgres.fullname" . }}
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: role
-                    operator: In
-                    values:
-                      - database
-
-      terminationGracePeriodSeconds: 60
-
-      {{- /* Allow per-environment tolerations to be injected from values (keeps ability to tolerate DB node taints) */ -}}
-      {{- with .Values.tolerations }}
-      tolerations:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-
-      {{- /* Pod-level securityContext injected from chart values (e.g. fsGroup, runAsUser) */ -}}
-      {{- with .Values.securityContext }}
       securityContext:
-{{ toYaml . | indent 8 }}
-      {{- end }}
-
-      {{- /* Optional init container to ensure the PV directory has correct owner/group (fixes permission denied on mkdir) */ -}}
-      {{- if .Values.initFixPermissions.enabled }}
-      initContainers:
-        - name: fix-permissions
-          image: {{ .Values.initFixPermissions.image | quote }}
-          command:
-            - sh
-            - -c
-            - "chown -R {{ .Values.initFixPermissions.ownerUid }}:{{ .Values.initFixPermissions.ownerGid }} {{ .Values.initFixPermissions.chownPath }} || true"
-          securityContext:
-            runAsUser: {{ .Values.initFixPermissions.runAsUser }}
-          volumeMounts:
-            - name: data
-              mountPath: {{ .Values.initFixPermissions.chownPath }}
-      {{- end }}
-
+        fsGroup: 999
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - containerPort: 5432
-              name: postgres
           env:
             - name: POSTGRES_DB
-              value: {{ .Values.dbName | quote }} # charts/postgres/templates/statefulset.yaml (env section)
+              value: {{ .Values.dbName | quote }}
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentials.userSecret.name }}
-                  key: {{ .Values.credentials.userSecret.key }}
+                  name: {{ .Values.existingSecret.name }}
+                  key: {{ .Values.existingSecret.userKey }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.credentials.passwordSecret.name }}
-                  key: {{ .Values.credentials.passwordSecret.key }}
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          readinessProbe:
-            exec:
-              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -h 127.0.0.1 -p 5432"]
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 5
-            failureThreshold: 6
-          livenessProbe:
-            exec:
-              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -h 127.0.0.1 -p 5432"]
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 6
-          startupProbe:
-            exec:
-              command: ["sh","-c","pg_isready -U \"$POSTGRES_USER\" -h 127.0.0.1 -p 5432"]
-            failureThreshold: 30
-            periodSeconds: 5
-          resources:
-{{ toYaml .Values.resources | indent 12 }}
+                  name: {{ .Values.existingSecret.name }}
+                  key: {{ .Values.existingSecret.passwordKey }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.service.port }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+{{- if .Values.resources }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+{{- end }}
+
+{{- /* init container to fix ownership if using hostPath/local PVs */}}
+{{- if .Values.initFixPermissions.enabled }}
+      initContainers:
+        - name: fix-permissions
+          image: {{ .Values.initFixPermissions.image | quote }}
+          command: ["sh","-c","chown -R {{ .Values.initFixPermissions.ownerUid }}:{{ .Values.initFixPermissions.ownerGid }} {{ .Values.initFixPermissions.chownPath }} || true"]
+          securityContext:
+            runAsUser: {{ .Values.initFixPermissions.runAsUser }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+{{- end }}
+
+{{- /* Decide storage behavior */}}
+{{- $explicit := .Values.storage.storageClassName | default "" }}
+{{- $cm := (lookup "v1" "ConfigMap" .Release.Namespace "db-storage") }}
+{{- $fromcm := "" }}
+{{- if $cm }}
+{{-   $fromcm = (get $cm.data "class") | default "" }}
+{{- end }}
+{{- $class := $explicit }}
+{{- if eq $class "" }}
+{{-   $class = $fromcm }}
+{{- end }}
+{{- if eq $class "" }}
+{{-   $class = "local-path" }}
+{{- end }}
+{{- $ephemeral := .Values.storage.ephemeral | default false }}
+{{- if or $ephemeral (eq $class "__EPHEMERAL__") }}
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "postgres.fullname" . }}
+    spec:
+      containers:
+        - name: postgres
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.dbName | quote }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret.name }}
+                  key: {{ .Values.existingSecret.userKey }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecret.name }}
+                  key: {{ .Values.existingSecret.passwordKey }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+
+{{- else }}
+
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -114,6 +122,8 @@ spec:
         resources:
           requests:
             storage: {{ .Values.storage.size | quote }}
-        {{- if .Values.storage.storageClassName }}
-        storageClassName: {{ .Values.storage.storageClassName | quote }}
-        {{- end }}
+{{- if $class }}
+        storageClassName: {{ $class | quote }}
+{{- end }}
+
+{{- end }}
