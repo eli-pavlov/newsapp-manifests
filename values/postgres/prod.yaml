@@ -6,7 +6,7 @@ service:
 
 storage:
   size: 20Gi
-  storageClassName: "local-db-prod"
+  storageClassName: ""
 
 dbName: newsdb_prod
 
