@@ -23,6 +23,30 @@ spec:
       securityContext:
         fsGroup: 999
       containers:
+{{- /* Choose secrets for user/password: prefer .Values.credentials.*, fallback to .Values.existingSecret */}}
+{{- $userSecretName := .Values.existingSecret.name | default "" }}
+{{- $userSecretKey  := .Values.existingSecret.userKey | default "" }}
+{{- $passSecretName := .Values.existingSecret.name | default "" }}
+{{- $passSecretKey  := .Values.existingSecret.passwordKey | default "" }}
+
+{{- if .Values.credentials.userSecret }}
+{{-   if .Values.credentials.userSecret.name }}
+{{-     $userSecretName = .Values.credentials.userSecret.name }}
+{{-   end }}
+{{-   if .Values.credentials.userSecret.key }}
+{{-     $userSecretKey = .Values.credentials.userSecret.key }}
+{{-   end }}
+{{- end }}
+
+{{- if .Values.credentials.passwordSecret }}
+{{-   if .Values.credentials.passwordSecret.name }}
+{{-     $passSecretName = .Values.credentials.passwordSecret.name }}
+{{-   end }}
+{{-   if .Values.credentials.passwordSecret.key }}
+{{-     $passSecretKey = .Values.credentials.passwordSecret.key }}
+{{-   end }}
+{{- end }}
+
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -32,13 +56,13 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.existingSecret.name }}
-                  key: {{ .Values.existingSecret.userKey }}
+                  name: {{ $userSecretName | quote }}
+                  key:  {{ $userSecretKey  | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.existingSecret.name }}
-                  key: {{ .Values.existingSecret.passwordKey }}
+                  name: {{ $passSecretName | quote }}
+                  key:  {{ $passSecretKey  | quote }}
           ports:
             - name: postgres
               containerPort: {{ .Values.service.port }}
@@ -95,13 +119,13 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.existingSecret.name }}
-                  key: {{ .Values.existingSecret.userKey }}
+                  name: {{ $userSecretName | quote }}
+                  key:  {{ $userSecretKey  | quote }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.existingSecret.name }}
-                  key: {{ .Values.existingSecret.passwordKey }}
+                  name: {{ $passSecretName | quote }}
+                  key:  {{ $passSecretKey  | quote }}
           ports:
             - name: postgres
               containerPort: {{ .Values.service.port }}
