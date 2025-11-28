@@ -1,0 +1,74 @@
+app:
+  name: website
+  syncWave: "2"
+
+replicaCount: 2
+
+image:
+  repository: elipavlov/weblightenment-website
+  tag: prod-001              # <-- set to your stable prod tag
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  nodePort: null
+  hostPort: null
+
+nodeSelector:
+  role: application
+
+affinity: {}
+tolerations: []
+
+env:
+  plain: {}
+  secretRefs: []
+  configRefs: []
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    # Production issuer
+    cert-manager.io/cluster-issuer: letsencrypt-dns01-cloudflare
+  hosts:
+    - host: weblightenment.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: www.weblightenment.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - weblightenment.com
+        - www.weblightenment.com
+      secretName: weblightenment-tls   # cert-manager will create this
+
+hpa:
+  enabled: false
+
+probes:
+  readiness:
+    enabled: true
+    type: http
+    path: /
+  liveness:
+    enabled: true
+    type: http
+    path: /
+  startup:
+    enabled: false
+
+networkPolicy:
+  enabled: false
