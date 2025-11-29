@@ -35,8 +35,16 @@ spec:
               
         prometheus:
           prometheusSpec:
-            nodeSelector:
-              role: application  # Align with app nodes to avoid taints
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: role
+                          operator: In
+                          values:
+                            - application
+                            - database
         alertmanager:
           alertmanagerSpec:
             nodeSelector:
