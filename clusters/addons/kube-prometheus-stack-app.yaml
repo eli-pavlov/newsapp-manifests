@@ -37,13 +37,22 @@ spec:
           prometheusSpec:
             affinity:
               nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 100
+                    preference:
+                      matchExpressions:
                         - key: role
                           operator: In
                           values:
                             - application
+
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 50
+                    preference:
+                      matchExpressions:
+                        - key: role
+                          operator: In
+                          values:
                             - database
         alertmanager:
           alertmanagerSpec:
