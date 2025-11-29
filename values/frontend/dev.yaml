@@ -9,19 +9,19 @@ image:
 service:
   type: ClusterIP
   port: 8080
-nodeSelector:
-  role: application
+nodeSelector: {}
+tolerations: []
 affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/component
-                operator: In
-                values: ["frontend"]
-          topologyKey: kubernetes.io/hostname
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: role
+              operator: In
+              values:
+                - application
+                - database
+
 resources:
   requests:
     cpu: 50m
