@@ -116,5 +116,39 @@ spec:
   issuerRef:
     name: letsencrypt-dns01-cloudflare
     kind: ClusterIssuer
+---
+### Cert for Website-dev
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-website-dev-weblightenment-com
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
+spec:
+  secretName: website-dev-tls
+  dnsNames:
+    - website-dev.weblightenment.com
+  issuerRef:
+    name: letsencrypt-dns01-cloudflare
+    kind: ClusterIssuer
+---
+### Cert for Website-prod
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cert-website-prod-weblightenment-com
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/depends-on: '["cert-manager-helm"]'
+spec:
+  secretName: website-prod-tls
+  dnsNames:
+    - website-prod.weblightenment.com
+  issuerRef:
+    name: letsencrypt-dns01-cloudflare
+    kind: ClusterIssuer
 
 
